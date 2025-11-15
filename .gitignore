@@ -1,0 +1,13 @@
+# macOS system files
+.DS_Store
+
+# RStudio files
+.Rhistory
+.RData
+.Rproj.user/
+
+# C++ build files
+*.o
+*.so
+*.dll
+*.exe

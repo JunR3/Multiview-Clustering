@@ -27,7 +27,7 @@ int sample_table(int i,
 void remove_customer(int i);
 void add_customer_to_existing_table(int i, int t);
 
-void create_empty_table(int t_new);
+void create_empty_table();
 void add_customer_to_new_table(int i, int t_new);
 
 // --- Dish assignment for new tables ---
@@ -35,5 +35,6 @@ int sample_dish_for_new_table(int v, int i);
 void assign_dishes_new_table(int i, int t_new);
 
 void save_state();
+double uniform01();
 
 #endif // MULTIVIEW_UTILS_H

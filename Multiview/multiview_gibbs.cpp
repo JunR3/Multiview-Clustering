@@ -11,7 +11,7 @@ Rcpp::List run_gibbs_cpp(const Rcpp::List& data_views,
                          int M, int burn_in, int thin) {
   
   d = data_views.size();
-  n = Rcpp::as<int>(data_views[0].attr("n"));
+  n = Rcpp::as<Rcpp::NumericVector>(data_views[0]).size();
   
   y.resize(d);
   for (int v = 0; v < d; ++v)

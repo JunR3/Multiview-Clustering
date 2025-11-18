@@ -1,5 +1,7 @@
 #include <Rcpp.h>
 using namespace Rcpp;
+
+#include "multiview_utils.h"
 #include "multiview_clustering.h"
 
 double compute_f_vk(int v, int k, int i);
@@ -176,4 +178,10 @@ void save_state() {
   saved_table_of.push_back(table_of);
   saved_dish_of.push_back(dish_of);
   saved_loglik.push_back(compute_log_likelihood());
+}
+
+
+
+double uniform01() {
+  return R::runif(0.0, 1.0);
 }

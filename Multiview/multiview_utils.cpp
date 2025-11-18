@@ -74,7 +74,90 @@ void add_customer_to_new_table(int i, int t_new) {
   n_t[t_new]=1;
 }
 
-int sample_dish_for_new_table(int v, int i)
+int sample_dish_for_new_table(int v, int i) {
+    // Reference to the current view to simplify notation
+    ViewState &V = views[v];
+
+    std::vector<double> weights;
+    std::vector<int> candidate_dishes; // Maps weight index -> actual dish index k
+
+    // ---------------------------------------------------------
+    // 1. Compute weights for EXISTING DISHES (k = old)
+    // Formula: (l_vk - sigma) * Likelihood(y_vi | theta_k)
+    // ---------------------------------------------------------
+    for (int k = 0; k < V.K; ++k) {
+        // We only consider dishes currently being served by at least one table (l_vk > 0).
+        // Note: l_vk counts TABLES, n_vk counts CUSTOMERS.
+        // Since we are assigning a *table* to a dish, the CRF dictates we use l_vk.
+        if (V.l_vk[k] > 0) {
+            double f_vk = compute_f_vk(v, k, i); // Likelihood helper
+
+            // Pitman-Yor weight for an existing dish
+            double weight = (V.l_vk[k] - V.sigma_v) * f_vk;
+
+            weights.push_back(weight);
+            candidate_dishes.push_back(k);
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 2. Compute weight for a NEW DISH (k = new)
+    // Formula: (alpha + sigma * K) * Marginal_Likelihood(y_vi)
+    // ---------------------------------------------------------
+    double f_vk_new = compute_f_vk_new(v, i); // Marginal likelihood helper
+
+    // Pitman-Yor weight for a new dish
+    // V.K is the current number of active dishes in this view
+    double weight_new = (V.alpha_v + V.sigma_v * V.K) * f_vk_new;
+
+    weights.push_back(weight_new);
+    // We do not add anything to candidate_dishes for the new option;
+    // we will identify it if the sampling falls into the last weight bucket.
+
+    // ---------------------------------------------------------
+    // 3. Sampling (Weighted Random Selection)
+    // ---------------------------------------------------------
+    double total_weight = 0.0;
+    for (double w : weights) total_weight += w;
+
+    std::uniform_real_distribution<double> dist(0.0, total_weight);
+    double u = dist(rng);
+
+    double current_sum = 0.0;
+    int selected_dish = -1;
+
+    // Iterate over existing dish options
+    for (size_t j = 0; j < candidate_dishes.size(); ++j) {
+        current_sum += weights[j];
+        if (u < current_sum) {
+            selected_dish = candidate_dishes[j];
+            break;
+        }
+    }
+
+    // ---------------------------------------------------------
+    // 4. Result Handling & State Expansion
+    // ---------------------------------------------------------
+
+    // If selected_dish remains -1, it means u fell into the last weight range (New Dish)
+    if (selected_dish == -1) {
+        // --- CREATE NEW DISH ---
+        int new_k = V.K; // The new index is the current count K
+
+        // Update View structure (expand vectors to accommodate the new index)
+        V.K++;
+        V.n_vk.push_back(0);         // Initialize with 0 customers
+        V.l_vk.push_back(0);         // Initialize with 0 tables (will be incremented by the caller)
+        V.sum_y.push_back(0.0);      // Initialize empty sufficient statistics
+        V.sum_y2.push_back(0.0);
+        V.customers_at_dish.push_back({}); // Initialize empty customer list
+
+        return new_k;
+    }
+
+    // If an existing dish was selected, return its index
+    return selected_dish;
+}
 
 void assign_dishes_new_table(int i, int t_new) {
   for (int v = 0; v < d; ++v) {

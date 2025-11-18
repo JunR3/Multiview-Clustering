@@ -8,14 +8,14 @@ static const double b_tau = 1.0;
 
 // Random-walk proposal for log(tau)
 double propose_tau(double tau_old) {
-  const double step_size = 0.1;         // to retouch if needed
+  const double step_size = 0.1;         // to change if necessary
   double log_tau_old  = std::log(tau_old);
   double eps          = rnorm(0.0, step_size);   // N(0, step_size^2)
   double log_tau_prop = log_tau_old + eps;
-  return std::exp(log_tau_prop);        // guarantees tau_prop > 0
+  return std::exp(log_tau_prop);        // guarantees taht tau_prop > 0
 }
 
-// Log-posterior of tau_v (view indexed by v)
+// Log-posterior of tau_v 
 double log_posterior_given_tau(int v, double tau_candidate) {
   const ViewState &V = views[v];
   
@@ -23,17 +23,9 @@ double log_posterior_given_tau(int v, double tau_candidate) {
     return -INFINITY;
   }
   
-
   // 1. Log-likelihood
-
   double loglik = 0.0;
-  
-  // SIMPLE MODEL:
-  // y_{vk,i} | tau_v ~ N(0, tau_v), independent
-  // loglik_k = -0.5 * n_k * log(2π tau) - 0.5 * (sum_y2_k) / tau
-  //
-  // If you want to include an unknown mean with conjugate prior,
-  // put here the "fancy" formula (using sum_y and sum_y2).
+
   for (int k = 0; k < V.K; ++k) {
     int    n_k    = V.n_vk[k];
     double sum_y2 = V.sum_y2[k];
@@ -46,7 +38,6 @@ double log_posterior_given_tau(int v, double tau_candidate) {
     loglik += term;
   }
   
-
   // 2. Log-prior: tau ~ Inv-Gamma(a_tau, b_tau)
 
   // densità: p(tau) ∝ tau^{-(a_tau+1)} exp(-b_tau / tau)
@@ -63,7 +54,7 @@ double log_posterior_given_tau(int v, double tau_candidate) {
 }
 
 // MH update for all tau_v (one per view)
-void update_hyperparameters_MH() {
+void update_tau_v_MH() {
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
     
@@ -72,7 +63,7 @@ void update_hyperparameters_MH() {
     
     double tau_prop = propose_tau(tau_old);
     if (tau_prop <= 0.0) {
-      continue;  // proposta fuori dal supporto
+      continue;  
     }
     
     double log_post_new  = log_posterior_given_tau(v, tau_prop);

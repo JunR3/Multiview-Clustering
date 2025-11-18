@@ -48,6 +48,7 @@ void remove_customer(int i) {
   int t = table_of[i];
   auto &list_t = customers_at_table[t]}
 
+
 void add_customer_to_existing_table(int i, int t) {
   customers_at_table[t].push_back(i);
   n_t++;
@@ -62,6 +63,7 @@ void add_customer_to_existing_table(int i, int t) {
   }
 }
 
+
 void create_empty_table(int t_new) { 
   T++;
   n_t.push_back(0);
@@ -70,11 +72,13 @@ void create_empty_table(int t_new) {
     dish_of[v].push_back(-1);
 }
 
+
 void add_customer_to_new_table(int i, int t_new) {
   table_of[i]=t_new;
   customers_at_table[t_new].push_back(i);
   n_t[t_new]=1;
 }
+
 
 int sample_dish_for_new_table(int v, int i) {
     // Reference to the current view to simplify notation
@@ -161,6 +165,7 @@ int sample_dish_for_new_table(int v, int i) {
     return selected_dish;
 }
 
+
 void assign_dishes_new_table(int i, int t_new) {
   for (int v = 0; v < d; ++v) {
     int k = sample_dish_for_new_table(v, i);
@@ -174,12 +179,12 @@ void assign_dishes_new_table(int i, int t_new) {
   }
 }
 
+
 void save_state() {
   saved_table_of.push_back(table_of);
   saved_dish_of.push_back(dish_of);
   saved_loglik.push_back(compute_log_likelihood());
 }
-
 
 
 double uniform01() {

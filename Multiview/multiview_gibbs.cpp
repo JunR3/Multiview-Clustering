@@ -68,25 +68,11 @@ void gibbs_sampler(int M, int burn_in, int thin) {
     }
     
     // Step 5: update hyperparameters (alpha_v, sigma_v, tau_v) via MH
-    update_hyperparameters_MH();
+    // update_hyperparameters_MH();
     
     // Step 6: store state if needed
     if (iter >= burn_in && ((iter - burn_in) % thin == 0)) {
       save_state();
     }
   }
-}
-
-
-double compute_log_likelihood() {
-  double ll = 0.0;
-  for (int i = 0; i < n; ++i) {
-    for (int v = 0; v < d; ++v) {
-      int t = table_of[i];
-      int k = dish_of[v][t];
-      double y_vi = y[v][i];
-      // append likelihood contribution
-    }
-  }
-  return ll;
 }

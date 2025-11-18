@@ -1,5 +1,6 @@
 #include <Rcpp.h>
 using namespace Rcpp;
+#include "multiview_clustering.h"
 
 double compute_f_vk(int v, int k, int i);
 double compute_f_vk_new(int v, int i);
@@ -27,7 +28,7 @@ void compute_table_probs_with_cache(
       }
       log_prob_t += std::log(f_vk);
     }
-    double mass_t = n_t[t];
+    double mass_t = n_t[t]-sigma_global;
     prob_existing[t] = mass_t * std::exp(log_prob_t);
   }
   
@@ -36,7 +37,7 @@ void compute_table_probs_with_cache(
     double f_vk_new = compute_f_vk_new(v, i);
     log_prob_new += std::log(f_vk_new);
   }
-  double mass_new = 1.0;
+  double mass_new = alpha_global + sigma_global*T;
   prob_new = mass_new * std::exp(log_prob_new);
 }
 

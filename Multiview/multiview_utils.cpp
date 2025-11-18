@@ -42,15 +42,39 @@ void compute_table_probs_with_cache(
 }
 
 
-void remove_customer(int i) { ... }
+void remove_customer(int i) { 
+  int t = table_of[i];
+  auto &list_t = customers_at_table[t]}
 
-void add_customer_to_existing_table(int i, int t) { ... }
+void add_customer_to_existing_table(int i, int t) {
+  customers_at_table[t].push_back(i);
+  n_t++;
+  
+  for(int v = 0; v < d; v++){
+    int k = dish_of[v][t];
+    ViewState &V = views[v];
+    V.n_vk[k]++;
+    V.sum_y[k] += y[v][i];
+    V.sum_y2[k] += y[v][i]*y[v][i];
+    V.customer_at_dish[k].push_back(i);
+  }
+}
 
-void create_empty_table(int t_new) { ... }
+void create_empty_table(int t_new) { 
+  T++;
+  n_t.push_back(0);
+  customers_at_table.emplace_back();
+  for(int v = 0; v < d; v++)
+    dish_of[v].push_back(-1);
+}
 
-void add_customer_to_new_table(int i, int t_new) { ... }
+void add_customer_to_new_table(int i, int t_new) {
+  table_of[i]=t_new;
+  customers_at_table[t_new].push_back(i);
+  n_t[t_new]=1;
+}
 
-int sample_dish_for_new_table(int v, int i);
+int sample_dish_for_new_table(int v, int i)
 
 void assign_dishes_new_table(int i, int t_new) {
   for (int v = 0; v < d; ++v) {

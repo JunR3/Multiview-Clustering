@@ -172,3 +172,8 @@ void assign_dishes_new_table(int i, int t_new) {
   }
 }
 
+void save_state() {
+  saved_table_of.push_back(table_of);
+  saved_dish_of.push_back(dish_of);
+  saved_loglik.push_back(compute_log_likelihood());
+}

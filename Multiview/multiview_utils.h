@@ -34,4 +34,6 @@ void add_customer_to_new_table(int i, int t_new);
 int sample_dish_for_new_table(int v, int i);
 void assign_dishes_new_table(int i, int t_new);
 
+void save_state();
+
 #endif // MULTIVIEW_UTILS_H

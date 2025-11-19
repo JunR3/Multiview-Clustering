@@ -89,7 +89,7 @@ build_clusters_for_view <- function(v, table_samples, dish_samples) {
       cl_v[i] <- dish_s[[v]][t]      # dish index for that table in view v
     }
     
-    ## attenzione: mcclust prefers labels >= 1, so if there are 0s add 1
+    ## mcclust prefers labels >= 1
     if (min(cl_v) == 0L) {
       cl_v <- cl_v + 1L
     }

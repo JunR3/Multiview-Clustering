@@ -40,6 +40,49 @@ double log_posterior_sigma_view(int v, double sigma_candidate) {
   return loglik + logprior;
 }
 
+double log_global_EPPF(double alpha, double sigma) {
+  if (!(sigma > 0.0 && sigma < 1.0)) return -INFINITY;
+  if (alpha <= -sigma) return -INFINITY;
+  if (T <= 0 || n_t.empty()) return 0.0;
+
+  double logp = 0.0;
+  for (int j = 0; j < T; ++j) {
+    double term = alpha + j * sigma;
+    if (term <= 0.0) return -INFINITY;
+    logp += std::log(term);
+  }
+
+  int total_customers = 0;
+  for (int count : n_t) total_customers += count;
+
+  for (int i = 1; i < total_customers; ++i) {
+    double term = alpha + i;
+    if (term <= 0.0) return -INFINITY;
+    logp -= std::log(term);
+  }
+
+  for (int count : n_t) {
+    for (int m = 1; m < count; ++m) {
+      double term = static_cast<double>(m) - sigma;
+      if (term <= 0.0) return -INFINITY;
+      logp += std::log(term);
+    }
+  }
+  return logp;
+}
+
+double log_posterior_global_alpha(double alpha_candidate) {
+  double loglik = log_global_EPPF(alpha_candidate, sigma_global);
+  double logprior = log_prior_alpha(alpha_candidate);
+  return loglik + logprior;
+}
+
+double log_posterior_global_sigma(double sigma_candidate) {
+  double loglik = log_global_EPPF(alpha_global, sigma_candidate);
+  double logprior = log_prior_sigma(sigma_candidate);
+  return loglik + logprior;
+}
+
 double propose_alpha(double alpha_old) {
   const double step = 0.1;
   double log_alpha = std::log(std::max(alpha_old, kEps));
@@ -74,6 +117,13 @@ static const double a_tau = 2.0;
 static const double b_tau = 1.0;
 
 void initialize_hyperparameters() {
+  if (!(alpha_global > 0.0)) {
+    alpha_global = 1.0;
+  }
+  if (!(sigma_global > 0.0 && sigma_global < 1.0)) {
+    sigma_global = 0.5;
+  }
+
   if (static_cast<int>(views.size()) != d) {
     views.assign(d, ViewState());
   }
@@ -194,6 +244,22 @@ void update_hyperparameters() {
     if (std::log(uniform01()) < log_acc_sigma) {
       V.sigma_v = sigma_prop;
     }
+  }
+
+  double alpha_global_old = alpha_global;
+  double alpha_global_prop = propose_alpha(alpha_global_old);
+  double log_post_alpha_global_old = log_posterior_global_alpha(alpha_global_old);
+  double log_post_alpha_global_new = log_posterior_global_alpha(alpha_global_prop);
+  if (std::log(uniform01()) < (log_post_alpha_global_new - log_post_alpha_global_old)) {
+    alpha_global = alpha_global_prop;
+  }
+
+  double sigma_global_old = sigma_global;
+  double sigma_global_prop = propose_sigma(sigma_global_old);
+  double log_post_sigma_global_old = log_posterior_global_sigma(sigma_global_old);
+  double log_post_sigma_global_new = log_posterior_global_sigma(sigma_global_prop);
+  if (std::log(uniform01()) < (log_post_sigma_global_new - log_post_sigma_global_old)) {
+    sigma_global = sigma_global_prop;
   }
 }
 

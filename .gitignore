@@ -11,3 +11,6 @@
 *.so
 *.dll
 *.exe
+
+# beltramin code folder containing 2view implementation 
+beltramin

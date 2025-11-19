@@ -28,6 +28,7 @@ Rcpp::List run_gibbs_cpp(const Rcpp::List& data_views,
 
 void gibbs_sampler(int M, int burn_in, int thin) {
   
+  initialize_hyperparameters();
   saved_table_of.clear();
   saved_dish_of.clear();
   saved_loglik.clear();
@@ -68,7 +69,7 @@ void gibbs_sampler(int M, int burn_in, int thin) {
     }
     
     // Step 5: update hyperparameters (alpha_v, sigma_v, tau_v) via MH
-    // update_hyperparameters_MH();
+    update_hyperparameters();
     
     // Step 6: store state if needed
     if (iter >= burn_in && ((iter - burn_in) % thin == 0)) {

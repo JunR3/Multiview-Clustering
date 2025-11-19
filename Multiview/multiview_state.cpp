@@ -17,6 +17,7 @@ struct ViewState {
 };
 
 // Global state variables (dichiarazioni)
+extern double alpha_global , sigma_global;
 extern int n, d;
 extern std::vector<std::vector<double>> y;
 

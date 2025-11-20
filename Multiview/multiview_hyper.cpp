@@ -1,26 +1,21 @@
 // multiview_hyper.cpp
 #include "multiview_hyper.h"
-#include "multiview_rng.h"   // uniform01(), rnorm()
 #include <cmath>
 
-// Hyper–prior per tau_v ~ Inv-Gamma(a_tau, b_tau)
+// Hyper–prior for tau_v ~ Inv-Gamma(a_tau, b_tau)
 static const double a_tau = 2.0;
 static const double b_tau = 1.0;
 
-//------------------------------------------------------------------
-// Proposta random–walk su log(tau)
-//------------------------------------------------------------------
+// Random-walk proposal for log(tau)
 double propose_tau(double tau_old) {
-  const double step_size = 0.1;         // da ritoccare se serve
+  const double step_size = 0.1;         // to change if necessary
   double log_tau_old  = std::log(tau_old);
   double eps          = rnorm(0.0, step_size);   // N(0, step_size^2)
   double log_tau_prop = log_tau_old + eps;
-  return std::exp(log_tau_prop);        // garantisce tau_prop > 0
+  return std::exp(log_tau_prop);        // guarantees taht tau_prop > 0
 }
 
-//------------------------------------------------------------------
-// Log-posterior di tau_v (view indicizzata da v)
-//------------------------------------------------------------------
+// Log-posterior of tau_v 
 double log_posterior_given_tau(int v, double tau_candidate) {
   const ViewState &V = views[v];
   
@@ -28,17 +23,9 @@ double log_posterior_given_tau(int v, double tau_candidate) {
     return -INFINITY;
   }
   
-  //-----------------------------
   // 1. Log-likelihood
-  //-----------------------------
   double loglik = 0.0;
-  
-  // MODELLO SEMPLICE:
-  // y_{vk,i} | tau_v ~ N(0, tau_v), indipendenti
-  // loglik_k = -0.5 * n_k * log(2π tau) - 0.5 * (sum_y2_k) / tau
-  //
-  // Se vuoi includere una media sconosciuta con prior coniugata,
-  // qui va messa la formula "fancy" (usando sum_y e sum_y2).
+
   for (int k = 0; k < V.K; ++k) {
     int    n_k    = V.n_vk[k];
     double sum_y2 = V.sum_y2[k];
@@ -51,9 +38,8 @@ double log_posterior_given_tau(int v, double tau_candidate) {
     loglik += term;
   }
   
-  //-----------------------------
   // 2. Log-prior: tau ~ Inv-Gamma(a_tau, b_tau)
-  //-----------------------------
+
   // densità: p(tau) ∝ tau^{-(a_tau+1)} exp(-b_tau / tau)
   // log p(tau) = a_tau*log(b_tau) - lgamma(a_tau)
   //             - (a_tau + 1)*log(tau) - b_tau/tau
@@ -67,10 +53,8 @@ double log_posterior_given_tau(int v, double tau_candidate) {
     return loglik + logprior;
 }
 
-//------------------------------------------------------------------
-// MH update per tutti i tau_v (uno per view)
-//------------------------------------------------------------------
-void update_hyperparameters_MH() {
+// MH update for all tau_v (one per view)
+void update_tau_v_MH() {
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
     
@@ -79,7 +63,7 @@ void update_hyperparameters_MH() {
     
     double tau_prop = propose_tau(tau_old);
     if (tau_prop <= 0.0) {
-      continue;  // proposta fuori dal supporto
+      continue;  
     }
     
     double log_post_new  = log_posterior_given_tau(v, tau_prop);
@@ -87,8 +71,8 @@ void update_hyperparameters_MH() {
     
     double u = uniform01();   // U(0,1)
     if (std::log(u) < log_acc_ratio) {
-      V.tau_v = tau_prop;    // accetto la proposta
+      V.tau_v = tau_prop;    // accept the proposal
     }
-    // altrimenti lascio tau_v = tau_old
+    // Alternatively, leave tau_v = tau_old
   }
 }

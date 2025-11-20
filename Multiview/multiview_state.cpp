@@ -20,6 +20,9 @@ struct ViewState {
 extern int n, d;
 extern std::vector<std::vector<double>> y;
 
+extern double alpha_global;
+extern double sigma_global;
+
 extern int T;
 extern std::vector<int> table_of;
 extern std::vector<int> n_t;

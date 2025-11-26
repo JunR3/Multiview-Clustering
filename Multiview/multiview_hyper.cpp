@@ -1,16 +1,18 @@
+//multiview_hyper.cpp
 #include "multiview_hyper.h"
+#include "multiview_utils.h"
+#include "multiview_state.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <numeric>
+#include <Rcpp.h>
 
 namespace {
 
 constexpr double kEps = 1e-6;
   
-  // ---------------------------------------------------------------------------
-  // Empirical variance (used for initialising tau_v)
-  // ---------------------------------------------------------------------------
+  // Empirical variance, to initizlize tau
   double empirical_variance(const std::vector<double> &vals) {
     if (vals.empty()) return 1.0;
     
@@ -29,9 +31,8 @@ constexpr double kEps = 1e-6;
     return (var > kEps) ? var : 1.0;
   }
   
-  // ---------------------------------------------------------------------------
-  // View–specific log-posteriors: log p(α_v | partition_v), log p(σ_v | partition_v)
-  // ---------------------------------------------------------------------------
+
+  // Log-posteriors
   double log_posterior_alpha_view(int v, double alpha_candidate) {
     if (alpha_candidate <= 0.0) return -INFINITY;
     const double sigma = views[v].sigma_v;
@@ -50,9 +51,8 @@ constexpr double kEps = 1e-6;
     return loglik + logprior;
   }
   
-  // ---------------------------------------------------------------------------
-  // Global EPPF for the franchise (global α, σ)
-  // ---------------------------------------------------------------------------
+
+  // Global EPPF for global alpha and sigma
   double log_global_EPPF(double alpha, double sigma) {
     if (!(sigma > 0.0 && sigma < 1.0)) return -INFINITY;
     if (alpha <= -sigma) return -INFINITY;
@@ -67,18 +67,18 @@ constexpr double kEps = 1e-6;
       logp += std::log(term);
     }
     
-    // Total customers inside tables
+    // total customers inside tables
     int total_customers = 0;
     for (int count : n_t) total_customers += count;
     
-    // Normalising term
+    // normalising term
     for (int i = 1; i < total_customers; ++i) {
       double term = alpha + i;
       if (term <= 0.0) return -INFINITY;
       logp -= std::log(term);
     }
     
-    // Discount contributions
+    // discount contributions
     for (int count : n_t) {
       for (int m = 1; m < count; ++m) {
         double term = static_cast<double>(m) - sigma;
@@ -90,9 +90,7 @@ constexpr double kEps = 1e-6;
     return logp;
   }
   
-  // ---------------------------------------------------------------------------
-  // Global α, σ log-posteriors
-  // ---------------------------------------------------------------------------
+  // Global alpha and sigma log-posteriors
   double log_posterior_global_alpha(double alpha_candidate) {
     double loglik  = log_global_EPPF(alpha_candidate, sigma_global);
     double logprior = log_prior_alpha(alpha_candidate);
@@ -105,22 +103,20 @@ constexpr double kEps = 1e-6;
     return loglik + logprior;
   }
   
-  // ---------------------------------------------------------------------------
-  // Proposal for α_v and α_global  (log-normal random walk)
-  // ---------------------------------------------------------------------------
+
+  // Proposal for alpha_v and alpha_global, rw
   double propose_alpha(double alpha_old) {
     const double step = 0.1;
     
     double log_alpha = std::log(std::max(alpha_old, kEps));
-    log_alpha += rnorm(0.0, step);
+    log_alpha += rnorm_scalar(0.0, step);
     
     double candidate = std::exp(log_alpha);
     return (candidate > kEps) ? candidate : kEps;
   }
   
-  // ---------------------------------------------------------------------------
-  // Reflection mechanism for σ proposals
-  // ---------------------------------------------------------------------------
+
+  // Reflection for sigma proposals
   double reflect_into_unit_interval(double value) {
     double prop = value;
     
@@ -135,12 +131,11 @@ constexpr double kEps = 1e-6;
     return std::clamp(prop, kEps, 1.0 - kEps);
   }
   
-  // ---------------------------------------------------------------------------
-  // Proposal for σ_v and σ_global (random walk + reflection)
-  // ---------------------------------------------------------------------------
+
+  // Proposal for sigma_v and sigma_global, rw + r
   double propose_sigma(double sigma_old) {
     const double step = 0.05;
-    double proposal = sigma_old + rnorm(0.0, step);
+    double proposal = sigma_old + rnorm_scalar(0.0, step);
     return reflect_into_unit_interval(proposal);
   }
   
@@ -148,30 +143,25 @@ constexpr double kEps = 1e-6;
 
 
 
-// ============================================================================
-// GLOBAL CONSTANTS
-// ============================================================================
+
+// Global constants
 static const double a_tau = 2.0;
 static const double b_tau = 1.0;
 
 
 
-// ============================================================================
-// INITIALISATION OF HYPERPARAMETERS
-// ============================================================================
+// Initialization of hyperparameters
 void initialize_hyperparameters() {
-  // --- initialise global α, σ
+  
   if (!(alpha_global > 0.0))
     alpha_global = 1.0;
   
   if (!(sigma_global > 0.0 && sigma_global < 1.0))
     sigma_global = 0.5;
   
-  // --- ensure views exist
   if (static_cast<int>(views.size()) != d)
     views.assign(d, ViewState());
   
-  // --- initialise each view
   for (int v = 0; v < d; ++v) {
     ViewState &state = views[v];
     
@@ -191,14 +181,12 @@ void initialize_hyperparameters() {
 
 
 
-// ============================================================================
-// TAU_v UPDATES (per-view Metropolis–Hastings)
-// ============================================================================
+// tau_v updates, MH
 double propose_tau(double tau_old) {
   const double step_size = 0.1;
   
   double log_tau_old = std::log(tau_old);
-  double eps         = rnorm(0.0, step_size);
+  double eps         = rnorm_scalar(0.0, step_size);
   double log_tau_prop = log_tau_old + eps;
   
   return std::exp(log_tau_prop);
@@ -210,7 +198,6 @@ double log_posterior_given_tau(int v, double tau_candidate) {
   if (tau_candidate <= 0.0)
     return -INFINITY;
   
-  // ---- Likelihood
   double loglik = 0.0;
   for (int k = 0; k < V.K; ++k) {
     int n_k       = V.n_vk[k];
@@ -225,7 +212,7 @@ double log_posterior_given_tau(int v, double tau_candidate) {
       loglik += term;
   }
   
-  // ---- Prior tau ~ Inv-Gamma(a_tau, b_tau)
+  //Prior tau ~ Inv-Gamma(a_tau, b_tau)
   double logprior =
     a_tau * std::log(b_tau)
     - std::lgamma(a_tau)
@@ -255,21 +242,17 @@ void update_tau_v_MH() {
 
 
 
-// ============================================================================
-// UPDATE α_v, σ_v, α_global, σ_global
-// ============================================================================
+
+// Update alpha_v, sigma_v, alpha_global, sigma_global
 void update_hyperparameters() {
   if (views.empty())
     initialize_hyperparameters();
-  
-  // update all tau_v
+
   update_tau_v_MH();
   
-  // update each view’s α_v and σ_v
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
     
-    // ---- α_v
     double alpha_old = V.alpha_v;
     double alpha_prop = propose_alpha(alpha_old);
     
@@ -279,8 +262,7 @@ void update_hyperparameters() {
     {
       V.alpha_v = alpha_prop;
     }
-    
-    // ---- σ_v
+  
     double sigma_old = V.sigma_v;
     double sigma_prop = propose_sigma(sigma_old);
     
@@ -292,7 +274,6 @@ void update_hyperparameters() {
     }
   }
   
-  // ---- α_global
   double ag_old = alpha_global;
   double ag_prop = propose_alpha(ag_old);
   
@@ -303,7 +284,6 @@ void update_hyperparameters() {
     alpha_global = ag_prop;
   }
   
-  // ---- σ_global
   double sg_old = sigma_global;
   double sg_prop = propose_sigma(sg_old);
   
@@ -317,9 +297,7 @@ void update_hyperparameters() {
 
 
 
-// ============================================================================
 // EPPF for a single view (Pitman–Yor partition)
-// ============================================================================
 double log_EPPF(int v, double alpha, double sigma) {
   if (v < 0 || v >= d) return -INFINITY;
   if (!(sigma > 0.0 && sigma < 1.0)) return -INFINITY;
@@ -343,7 +321,6 @@ double log_EPPF(int v, double alpha, double sigma) {
   
   if (total_n == 0) return 0.0;
   
-  // ---- Compute EPPF
   double logp = 0.0;
   
   // table creation terms
@@ -374,10 +351,7 @@ double log_EPPF(int v, double alpha, double sigma) {
 }
 
 
-
-// ============================================================================
-// PRIORS FOR α AND σ
-// ============================================================================
+// Prior for alpha and sigma
 double log_prior_alpha(double alpha) {
   if (alpha <= 0.0) return -INFINITY;
   

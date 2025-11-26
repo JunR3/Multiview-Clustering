@@ -1,6 +1,4 @@
-//
-// Created by rafam on 18/11/2025.
-//
+//multiview_utils.h
 
 #ifndef MULTIVIEW_UTILS_H
 #define MULTIVIEW_UTILS_H
@@ -27,7 +25,7 @@ int sample_table(int i,
 void remove_customer(int i);
 void add_customer_to_existing_table(int i, int t);
 
-void create_empty_table();
+int create_empty_table();
 void add_customer_to_new_table(int i, int t_new);
 
 // --- Dish assignment for new tables ---
@@ -36,5 +34,6 @@ void assign_dishes_new_table(int i, int t_new);
 
 void save_state();
 double uniform01();
+double rnorm_scalar(double mean, double sd);
 
 #endif // MULTIVIEW_UTILS_H

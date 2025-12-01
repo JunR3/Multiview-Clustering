@@ -9,14 +9,11 @@ using namespace Rcpp;
 #include "multiview_utils.h"
 #include "multiview_state.h"
 
-// Cache per la varianza globale dei dati per ogni vista
-// Serve a "guidare" la creazione di nuovi cluster
 std::vector<double> global_view_variance;
 
-// Helper per inizializzare la varianza globale (chiamalo una volta all'inizio)
 void ensure_global_variances_calculated() {
   if ((int)global_view_variance.size() != d) {
-    global_view_variance.assign(d, 10.0); // valore di default sicuro
+    global_view_variance.assign(d, 10.0);
     for(int v=0; v<d; ++v) {
       if (y[v].empty()) continue;
       double sum = 0, sum2 = 0;
@@ -36,13 +33,10 @@ void ensure_global_variances_calculated() {
 double compute_f_vk(int v, int k, int i);
 double compute_f_vk_new(int v, int i);
 
-// Funzione Helper Ottimizzata per marginalizzare sul piatto
 double compute_marginal_likelihood_new_table(int v, int i) {
   const ViewState &V = views[v];
   
   double total_tables_v = 0.0;
-  // Nota: invece di ricalcolare la somma ogni volta, potremmo mantenerla nello stato,
-  // ma per sicurezza sommiamo qui (è veloce, vettore piccolo di dimensione K)
   for (int count : V.l_vk) total_tables_v += count;
   
   double denominator = V.alpha_v + total_tables_v;
@@ -50,46 +44,37 @@ double compute_marginal_likelihood_new_table(int v, int i) {
   
   double likelihood_sum = 0.0;
   
-  // 1. Contributo piatti ESISTENTI
-  // Ottimizzazione: calcoliamo f_vk solo se il peso è positivo
   for (int k = 0; k < V.K; ++k) {
     if (V.l_vk[k] > 0) {
       double weight = (V.l_vk[k] - V.sigma_v);
-      // Qui chiamiamo la funzione standard compute_f_vk
-      // (che usa la media del cluster k)
+      
       likelihood_sum += weight * compute_f_vk(v, k, i);
     }
   }
   
-  // 2. Contributo NUOVO piatto
   int K_active = 0;
   for(int c : V.l_vk) if(c > 0) K_active++;
   
   double weight_new = (V.alpha_v + K_active * V.sigma_v);
   
-  // Qui chiamiamo la NUOVA versione di compute_f_vk_new
   likelihood_sum += weight_new * compute_f_vk_new(v, i);
   
   return likelihood_sum / denominator;
 }
-// In multiview_utils.cpp, sostituisci la funzione compute_table_probs_with_cache con questa:
+
 
 void compute_table_probs_with_cache(
     int i,
     std::vector<double> &prob_existing,
     double &prob_new,
-    std::vector<std::unordered_map<int, double>> &cache_fvk // <--- Workspace passato per ref
+    std::vector<std::unordered_map<int, double>> &cache_fvk 
 ) {
-  // 1. OTTIMIZZAZIONE: Puliamo la cache invece di riallocarla
-  // Questo evita migliaia di allocazioni di memoria.
   for(auto &map : cache_fvk) {
     map.clear();
   }
   
-  // Assicuriamoci di aver calcolato le varianze globali (Fix precedente)
   if(global_view_variance.empty()) ensure_global_variances_calculated();
   
-  // 2. Probabilità Tavoli Esistenti
   for (int t = 0; t < T; ++t) {
     if (n_t[t] == 0) {
       prob_existing[t] = 0.0;
@@ -101,16 +86,15 @@ void compute_table_probs_with_cache(
     for (int v = 0; v < d; ++v) {
       int k = dish_of[v][t];  
       
-      // Usiamo la cache passata come argomento
       auto &cache_v = cache_fvk[v];
       
       double f_vk;
-      // Cerchiamo nella mappa
+
       auto it = cache_v.find(k);
       if (it != cache_v.end()) {
         f_vk = it->second;
       } else {
-        // Calcoliamo e salviamo
+
         f_vk = compute_f_vk(v, k, i);
         cache_v[k] = f_vk;
       }
@@ -126,7 +110,6 @@ void compute_table_probs_with_cache(
     }
   }
   
-  // 3. Probabilità Nuovo Tavolo (Marginalizzata - Fix precedente)
   double log_prob_new_table_data = 0.0;
   for (int v = 0; v < d; ++v) {
     double marg_lik = compute_marginal_likelihood_new_table(v, i);
@@ -146,13 +129,7 @@ void compute_table_probs_with_cache(
     prob_new = mass_new * std::exp(log_prob_new_table_data);
   }
 }
-// ... [Mantieni remove_customer, add_customer..., create_empty_table invariate] ...
-// Ti ricopio solo le funzioni critiche modificate qui sotto, 
-// per il resto usa quelle che avevi già nel file precedente se non sono qui.
 
-// Assicurati che create_empty_table, remove_customer, add_customer siano presenti!
-// (Omesse per brevità se sono identiche al tuo ultimo invio funzionante)
-// Se ti servono ridimmi che le ricopio tutte.
 
 void remove_customer(int i) {
   int t = table_of[i];  
@@ -180,23 +157,17 @@ void remove_customer(int i) {
     std::swap(*it2, list_k.back());
     list_k.pop_back();
     
-    // Se il piatto diventa vuoto di CLIENTI, potremmo dover aggiornare l_vk?
-    // Nel CRF standard, l_vk conta i TAVOLI.
-    // remove_customer toglie un cliente dal tavolo. Il tavolo rimane lì (anche se vuoto di clienti, finché non viene rimosso).
-    // La rimozione del tavolo avviene dopo.
   }
   
   table_of[i] = -1;
   
-  // Logica rimozione tavolo vuoto
   if (n_t[t] == 0) {
-    // Decrementa l_vk per i piatti a cui questo tavolo era assegnato
+
     for (int v = 0; v < d; ++v) {
       int k = dish_of[v][t];
       if(k >= 0 && views[v].l_vk[k] > 0) views[v].l_vk[k]--;
     }
     
-    // Swap and pop del tavolo
     int last = T - 1;
     if (t != last) {
       customers_at_table[t] = std::move(customers_at_table[last]);
@@ -246,15 +217,13 @@ void add_customer_to_new_table(int i, int t_new) {
   n_t[t_new] = 1;
 }
 
-// ... sample_dish_for_new_table, assign_dishes_new_table ...
-// IMPORTANTE: Anche qui dobbiamo usare la f_vk_new CORRETTA (vedi sotto)
+
 
 int sample_dish_for_new_table(int v, int i) {
   ViewState &V = views[v];
   std::vector<double> weights;
   std::vector<int> candidate_dishes;
   
-  // Existing
   for (int k = 0; k < V.K; ++k) {
     if (V.l_vk[k] > 0) {
       double f_vk = compute_f_vk(v, k, i);
@@ -265,9 +234,6 @@ int sample_dish_for_new_table(int v, int i) {
     }
   }
   
-  // New
-  // Nota: qui K è il numero totale di dish allocati, 
-  // idealmente dovremmo usare K_active per la formula corretta del PYP
   int K_active = 0; 
   for(int c : V.l_vk) if(c>0) K_active++;
   
@@ -281,7 +247,6 @@ int sample_dish_for_new_table(int v, int i) {
   for(double w:weights) total_w+=w;
   
   if(total_w <= 0) {
-    // Fallback: se tutto è 0, forza nuovo dish o random
     return (V.K); 
   }
   
@@ -292,7 +257,6 @@ int sample_dish_for_new_table(int v, int i) {
     if(u < cum) return candidate_dishes[j];
   }
   
-  // Se arriviamo qui, è New Dish
   int new_k = V.K;
   V.K++;
   V.n_vk.push_back(0);
@@ -324,17 +288,14 @@ void save_state() {
 double uniform01() { return R::runif(0.0, 1.0); }
 double rnorm_scalar(double mean, double sd) { return R::rnorm(mean, sd); }
 
-// ==========================================================
-// FUNZIONI DI LIKELIHOOD CRITICHE
-// ==========================================================
+
 
 double compute_f_vk(int v, int k, int i) {
   const ViewState &V = views[v];
   double y_vi = y[v][i];      
   double tau  = V.tau_v;      
   if (tau <= 1e-9) tau = 1e-9; 
-  
-  // Media del cluster k (plug-in approximation)
+
   double mean_k = 0.0;
   if (V.n_vk[k] > 0) {
     mean_k = V.sum_y[k] / static_cast<double>(V.n_vk[k]);
@@ -345,9 +306,7 @@ double compute_f_vk(int v, int k, int i) {
   return std::exp(logden);
 }
 
-// QUESTA È LA FUNZIONE CHE RISOLVE IL PROBLEMA
-// Calcola la verosimiglianza marginale assumendo che il centro del cluster
-// sia distribuito come i dati (Varianza Globale), non fisso a 0.
+
 double compute_f_vk_new(int v, int i) {
   if(global_view_variance.empty()) ensure_global_variances_calculated();
   
@@ -355,11 +314,8 @@ double compute_f_vk_new(int v, int i) {
   double y_vi = y[v][i];
   double tau  = V.tau_v;
   
-  // Varianza predittiva = Varianza Errore (tau) + Varianza Prior del Centro (Global Var)
-  // Questo allarga la campana e permette di catturare punti lontani come "Nuovi Cluster"
   double pred_var = tau + global_view_variance[v];
   
-  // Assumiamo Prior Mean = 0 (o media globale dati se li avessimo centrati, ma 0 va bene con var larga)
   double diff = y_vi - 0.0; 
   
   double logden = -0.5 * std::log(2.0 * M_PI * pred_var) -0.5 * (diff * diff) / pred_var;

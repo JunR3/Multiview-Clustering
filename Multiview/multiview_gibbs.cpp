@@ -1,6 +1,6 @@
 // multiview_gibbs.cpp
 #include <Rcpp.h>
-#include <numeric>          
+#include <numeric> 
 #include <cmath>
 #include "multiview_state.h"
 #include "multiview_gibbs.h"
@@ -10,11 +10,11 @@
 using namespace Rcpp;
 
 static void initialize_state_from_data() {
-
-  int K_init_tables = 4;   
-  int K_init_dishes = 2;   
   
-
+  int K_init_tables = 4; 
+  int K_init_dishes = 2; 
+  
+  
   T = K_init_tables;
   table_of.assign(n, 0);
   n_t.assign(T, 0);
@@ -22,9 +22,9 @@ static void initialize_state_from_data() {
   customers_at_table.clear();
   customers_at_table.resize(T);
   
-
+  
   for (int i = 0; i < n; ++i) {
-    int t = static_cast<int>(std::floor(R::runif(0.0, (double)T))); 
+    int t = static_cast<int>(std::floor(R::runif(0.0, (double)T)));
     if (t < 0) t = 0;
     if (t >= T) t = T - 1;
     
@@ -45,7 +45,7 @@ static void initialize_state_from_data() {
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
     
-    V.K = K_init_dishes;              
+    V.K = K_init_dishes; 
     V.n_vk.assign(V.K, 0);
     V.l_vk.assign(V.K, 0);
     V.sum_y.assign(V.K, 0.0);
@@ -59,7 +59,7 @@ static void initialize_state_from_data() {
       if (k >= V.K) k = V.K - 1;
       
       dish_of[v][t] = k;
-      V.l_vk[k]++;   
+      V.l_vk[k]++; 
     }
     
     for (int i = 0; i < n; ++i) {
@@ -68,7 +68,7 @@ static void initialize_state_from_data() {
       
       double val = y[v][i];
       V.n_vk[k]++;
-      V.sum_y[k]  += val;
+      V.sum_y[k] += val;
       V.sum_y2[k] += val * val;
       V.customers_at_dish[k].push_back(i);
     }
@@ -116,19 +116,17 @@ Rcpp::List run_gibbs_cpp(const Rcpp::List& data_views,
     y[v] = Rcpp::as<std::vector<double>>(data_views[v]);
   
   initialize_state_from_data();
-
+  
   gibbs_sampler(M, burn_in, thin);
   
   return Rcpp::List::create(
     Rcpp::Named("table_of") = saved_table_of,
-    Rcpp::Named("dish_of")  = saved_dish_of,
-    Rcpp::Named("loglik")   = saved_loglik
+    Rcpp::Named("dish_of") = saved_dish_of,
+    Rcpp::Named("loglik")  = saved_loglik
   );
 }
 // multiview_gibbs.cpp
 // ... (include e init invariati) ...
-
-// Sostituisci la funzione gibbs_sampler con questa versione ottimizzata:
 
 void gibbs_sampler(int M, int burn_in, int thin) {
   
@@ -136,12 +134,10 @@ void gibbs_sampler(int M, int burn_in, int thin) {
   saved_dish_of.clear();
   saved_loglik.clear();
   
-  // --- OTTIMIZZAZIONE MEMORIA ---
-  // Creiamo il workspace QUI, fuori dal loop principale.
-  // Viene allocato una volta sola e riutilizzato per milioni di iterazioni.
+  
   std::vector<std::unordered_map<int, double>> workspace_cache(d);
-  // Riserviamo un po' di bucket per evitare rehashing frequenti (es. 50 piatti per vista)
-  for(auto &m : workspace_cache) m.reserve(64); 
+  
+  for(auto &m : workspace_cache) m.reserve(64);
   
   for (int iter = 0; iter < M; ++iter) {
     
@@ -151,24 +147,24 @@ void gibbs_sampler(int M, int burn_in, int thin) {
     }
     
     for (int i = 0; i < n; ++i) {
-      // Step 1: remove customer i
+      
       remove_customer(i);
       
-      // Step 2: compute table probabilities
+      
       std::vector<double> prob_existing(T, 0.0);
       double prob_new = 0.0;
       
-      // Passiamo il workspace 'workspace_cache' invece di allocarne uno nuovo dentro
+      
       compute_table_probs_with_cache(i, prob_existing, prob_new, workspace_cache);
       
-      // normalise
+      
       double sum_p = prob_new;
       for (int t = 0; t < T; ++t) sum_p += prob_existing[t];
       
       if (sum_p <= 0.0) {
-        // Fallback di sicurezza: rimetti al tavolo 0 o random
-        add_customer_to_existing_table(i, 0); 
-        continue; 
+        
+        add_customer_to_existing_table(i, 0);
+        continue;
       }
       
       for (int t = 0; t < T; ++t) prob_existing[t] /= sum_p;
@@ -197,7 +193,7 @@ void gibbs_sampler(int M, int burn_in, int thin) {
     
     update_hyperparameters();
     
-    // Step 6: store state if needed
+    
     if (iter >= burn_in && ((iter - burn_in) % thin == 0)) {
       save_state();
     }

@@ -12,7 +12,6 @@ namespace {
 
 constexpr double kEps = 1e-6;
   
-  // Empirical variance, to initialize tau
   double empirical_variance(const std::vector<double> &vals) {
     if (vals.empty()) return 1.0;
     
@@ -31,7 +30,7 @@ constexpr double kEps = 1e-6;
     return (var > kEps) ? var : 1.0;
   }
   
-  // Log-posteriors for view-specific alpha, sigma
+
   double log_posterior_alpha_view(int v, double alpha_candidate) {
     if (alpha_candidate <= 0.0) return -INFINITY;
     const double sigma = views[v].sigma_v;
@@ -49,34 +48,29 @@ constexpr double kEps = 1e-6;
     double logprior = log_prior_sigma(sigma_candidate);
     return loglik + logprior;
   }
-  
-  // Global EPPF for global alpha and sigma
+
   double log_global_EPPF(double alpha, double sigma) {
     if (!(sigma > 0.0 && sigma < 1.0)) return -INFINITY;
     if (alpha <= -sigma) return -INFINITY;
     if (T <= 0 || n_t.empty()) return 0.0;
     
     double logp = 0.0;
-    
-    // Product over table creation terms
+
     for (int j = 0; j < T; ++j) {
       double term = alpha + j * sigma;
       if (term <= 0.0) return -INFINITY;
       logp += std::log(term);
     }
-    
-    // total customers inside tables
+
     int total_customers = 0;
     for (int count : n_t) total_customers += count;
-    
-    // normalising term
+
     for (int i = 1; i < total_customers; ++i) {
       double term = alpha + i;
       if (term <= 0.0) return -INFINITY;
       logp -= std::log(term);
     }
-    
-    // discount contributions
+
     for (int count : n_t) {
       for (int m = 1; m < count; ++m) {
         double term = static_cast<double>(m) - sigma;
@@ -88,7 +82,7 @@ constexpr double kEps = 1e-6;
     return logp;
   }
   
-  // Global alpha and sigma log-posteriors
+
   double log_posterior_global_alpha(double alpha_candidate) {
     double loglik  = log_global_EPPF(alpha_candidate, sigma_global);
     double logprior = log_prior_alpha(alpha_candidate);
@@ -100,8 +94,7 @@ constexpr double kEps = 1e-6;
     double logprior = log_prior_sigma(sigma_candidate);
     return loglik + logprior;
   }
-  
-  // Proposal for alpha_v and alpha_global, RW on log-scale
+
   double propose_alpha(double alpha_old) {
     const double step = 0.1;
     
@@ -111,8 +104,7 @@ constexpr double kEps = 1e-6;
     double candidate = std::exp(log_alpha);
     return (candidate > kEps) ? candidate : kEps;
   }
-  
-  // Reflection for sigma proposals
+
   double reflect_into_unit_interval(double value) {
     double prop = value;
     
@@ -126,8 +118,7 @@ constexpr double kEps = 1e-6;
     
     return std::clamp(prop, kEps, 1.0 - kEps);
   }
-  
-  // Proposal for sigma_v and sigma_global, RW + reflection
+
   double propose_sigma(double sigma_old) {
     const double step = 0.05;
     double proposal = sigma_old + rnorm_scalar(0.0, step);
@@ -137,12 +128,11 @@ constexpr double kEps = 1e-6;
 } // end namespace
 
 
-// Global constants
 static const double a_tau = 2.0;
 static const double b_tau = 1.0;
 
 
-// Initialization of hyperparameters
+
 void initialize_hyperparameters() {
   
   if (!(alpha_global > 0.0))
@@ -172,7 +162,7 @@ void initialize_hyperparameters() {
 }
 
 
-// tau_v updates, MH
+
 double propose_tau(double tau_old) {
   const double step_size = 0.1;
   
@@ -194,14 +184,11 @@ double log_posterior_given_tau(int v, double tau_candidate) {
     
     if (n_k == 0) continue;
     
-    // --- CORREZIONE QUI ---
     double s_y  = V.sum_y[k];
     double s_y2 = V.sum_y2[k];
     
-    // Calcolo SSE (Sum of Squared Errors) rispetto alla media del cluster
     double sse_k = s_y2 - (s_y * s_y) / static_cast<double>(n_k);
     
-    // Protezione numerica per sse_k < 0 dovuta a virgola mobile
     if (sse_k < 0.0) sse_k = 0.0;
     
     double term =
@@ -211,7 +198,6 @@ double log_posterior_given_tau(int v, double tau_candidate) {
       loglik += term;
   }
   
-  // Prior tau ~ Inv-Gamma(a_tau, b_tau)
   double logprior =
     a_tau * std::log(b_tau)
     - std::lgamma(a_tau)
@@ -235,7 +221,6 @@ void update_tau_v_MH() {
     
     double log_new = log_posterior_given_tau(v, tau_prop);
     
-    // MH correction for log-normal RW: + log(tau_prop) - log(tau_old)
     double log_q_ratio = std::log(tau_prop) - std::log(tau_old);
     
     double log_acc = (log_new - log_old) + log_q_ratio;
@@ -245,19 +230,15 @@ void update_tau_v_MH() {
 }
 
 
-// Update alpha_v, sigma_v, alpha_global, sigma_global
 void update_hyperparameters() {
   if (views.empty())
     initialize_hyperparameters();
   
-  // update all tau_v
   update_tau_v_MH();
   
-  // per-view alpha_v, sigma_v
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
     
-    // ---- alpha_v (RW on log-scale + Hastings correction)
     double alpha_old = V.alpha_v;
     if (alpha_old <= 0.0) alpha_old = kEps;
     
@@ -273,7 +254,6 @@ void update_hyperparameters() {
       V.alpha_v = alpha_prop;
     }
     
-    // ---- sigma_v (RW additivo + riflessione → simmetrico)
     double sigma_old = V.sigma_v;
     double sigma_prop = propose_sigma(sigma_old);
     
@@ -285,7 +265,6 @@ void update_hyperparameters() {
     }
   }
   
-  // ---- alpha_global (RW log + Hastings correction)
   double ag_old = alpha_global;
   if (ag_old <= 0.0) ag_old = kEps;
   
@@ -301,7 +280,6 @@ void update_hyperparameters() {
     alpha_global = ag_prop;
   }
   
-  // ---- sigma_global (RW additivo + riflessione, simmetrico)
   double sg_old = sigma_global;
   double sg_prop = propose_sigma(sg_old);
   
@@ -314,8 +292,6 @@ void update_hyperparameters() {
 }
 
 
-// EPPF for a single view (Pitman–Yor partition)
-// EPPF for a single view (Partition of TABLES into DISHES)
 double log_EPPF(int v, double alpha, double sigma) {
   if (v < 0 || v >= d) return -INFINITY;
   if (!(sigma > 0.0 && sigma < 1.0)) return -INFINITY;
@@ -324,13 +300,10 @@ double log_EPPF(int v, double alpha, double sigma) {
   
   const ViewState &V = views[v];
   
-  // --- MODIFICA FONDAMENTALE: Usiamo l_vk, non n_vk ---
-  // l_vk = numero di tavoli che hanno scelto il piatto k
-  
-  std::vector<int> cluster_sizes_tables; // Counts of tables per dish
+  std::vector<int> cluster_sizes_tables; 
   cluster_sizes_tables.reserve(V.l_vk.size());
   
-  int total_tables = 0; // Questo dovrebbe essere uguale a T (tavoli globali)
+  int total_tables = 0; 
   for (int count : V.l_vk) {
     if (count > 0) {
       cluster_sizes_tables.push_back(count);
@@ -342,8 +315,6 @@ double log_EPPF(int v, double alpha, double sigma) {
   
   double logp = 0.0;
   
-  // 1. Numeratore: Termini di creazione dei piatti (cluster locali)
-  //    Simile a: alpha + j * sigma, dove j è l'indice del piatto creato
   const int K_active = static_cast<int>(cluster_sizes_tables.size());
   for (int j = 0; j < K_active; ++j) {
     double term = alpha + j * sigma;
@@ -351,16 +322,14 @@ double log_EPPF(int v, double alpha, double sigma) {
     logp += std::log(term);
   }
   
-  // 2. Denominatore: Normalizzazione sul numero totale di "items" (qui TAVOLI)
-  //    Simile a: alpha + i, per i da 1 a T-1
+  
   for (int i = 1; i < total_tables; ++i) {
     double term = alpha + i;
     if (term <= 0.0) return -INFINITY;
     logp -= std::log(term);
   }
   
-  // 3. Prodotto: Discount terms basati sulla dimensione dei cluster (in TAVOLI)
-  //    Simile a: m - sigma, per m da 1 a l_vk - 1
+  
   for (int l_k : cluster_sizes_tables) {
     for (int m = 1; m < l_k; ++m) {
       double term = static_cast<double>(m) - sigma;
@@ -372,7 +341,6 @@ double log_EPPF(int v, double alpha, double sigma) {
   return logp;
 }
 
-// Prior for alpha and sigma
 double log_prior_alpha(double alpha) {
   if (alpha <= 0.0) return -INFINITY;
   

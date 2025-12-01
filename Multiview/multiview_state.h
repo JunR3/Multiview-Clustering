@@ -4,7 +4,6 @@
 
 #include <vector>
 
-// Per-view state
 struct ViewState {
   int K = 0;                                
   std::vector<int> n_vk;                    

@@ -125,6 +125,10 @@ Rcpp::List run_gibbs_cpp(const Rcpp::List& data_views,
     Rcpp::Named("loglik")   = saved_loglik
   );
 }
+// multiview_gibbs.cpp
+// ... (include e init invariati) ...
+
+// Sostituisci la funzione gibbs_sampler con questa versione ottimizzata:
 
 void gibbs_sampler(int M, int burn_in, int thin) {
   
@@ -132,25 +136,40 @@ void gibbs_sampler(int M, int burn_in, int thin) {
   saved_dish_of.clear();
   saved_loglik.clear();
   
+  // --- OTTIMIZZAZIONE MEMORIA ---
+  // Creiamo il workspace QUI, fuori dal loop principale.
+  // Viene allocato una volta sola e riutilizzato per milioni di iterazioni.
+  std::vector<std::unordered_map<int, double>> workspace_cache(d);
+  // Riserviamo un po' di bucket per evitare rehashing frequenti (es. 50 piatti per vista)
+  for(auto &m : workspace_cache) m.reserve(64); 
+  
   for (int iter = 0; iter < M; ++iter) {
-
+    
     if ( (iter + 1) % 100 == 0 ) {
       Rcpp::Rcout << "Iteration " << (iter + 1)
                   << " / " << M << std::endl;
     }
+    
     for (int i = 0; i < n; ++i) {
       // Step 1: remove customer i
       remove_customer(i);
       
-      // Step 2: compute table probabilities (existing/new)
+      // Step 2: compute table probabilities
       std::vector<double> prob_existing(T, 0.0);
       double prob_new = 0.0;
-      compute_table_probs_with_cache(i, prob_existing, prob_new);
+      
+      // Passiamo il workspace 'workspace_cache' invece di allocarne uno nuovo dentro
+      compute_table_probs_with_cache(i, prob_existing, prob_new, workspace_cache);
       
       // normalise
       double sum_p = prob_new;
       for (int t = 0; t < T; ++t) sum_p += prob_existing[t];
-      if (sum_p <= 0.0) continue; // fallback di sicurezza
+      
+      if (sum_p <= 0.0) {
+        // Fallback di sicurezza: rimetti al tavolo 0 o random
+        add_customer_to_existing_table(i, 0); 
+        continue; 
+      }
       
       for (int t = 0; t < T; ++t) prob_existing[t] /= sum_p;
       prob_new /= sum_p;
@@ -166,6 +185,7 @@ void gibbs_sampler(int M, int burn_in, int thin) {
           break;
         }
       }
+      
       if (t_star == -1) {
         int t_new = create_empty_table();
         add_customer_to_new_table(i, t_new);

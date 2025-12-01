@@ -54,7 +54,7 @@ simulate_multiview_data <- function(n = 200, V) {
 
 
 
-V <- 3
+V <- 5
 sim <- simulate_multiview_data(n=200, V=V)
 
 x               <- sim$x

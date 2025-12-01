@@ -63,7 +63,7 @@ simulate_multiview_data <- function(n = 200, V) {
 
 
 # ---- Simulate 5 views
-V <- 3
+V <- 5
 sim <- simulate_multiview_data(n = 200, V = V)
 
 x               <- sim$x
@@ -114,8 +114,8 @@ for (s in seq_len(S)) {
 }
 
 # ---- Compare any pair of views
-view_idx1 <- 1
-view_idx2 <- 2 # could choose 4 or 5 as well
+view_idx1 <- 2
+view_idx2 <-  4# could choose 4 or 5 as well
 
 cl1_t <- t(cluster_list[[view_idx1]])
 cl2_t <- t(cluster_list[[view_idx2]])

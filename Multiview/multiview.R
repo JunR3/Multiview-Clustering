@@ -5,14 +5,14 @@ library(Rcpp)
 library(mcclust)
 library(mcclust.ext)
 library(gridExtra)
-library(clue)
-
+library(clue)   
 Rcpp::sourceCpp("multiview_gibbs.cpp")
 
 
-V <- 3
+
 simulate_multiview_data <- function(n = 200, V) {
-  set.seed(999)
+  
+  set.seed(1)
   
   n1 <- round(0.40*n)
   n2 <- round(0.30*n)
@@ -52,15 +52,9 @@ simulate_multiview_data <- function(n = 200, V) {
   )
 }
 
-plots <- lapply(seq_len(V), function(v){
-  ggplot(data.frame(val=x[[paste0("view",v)]]), aes(val)) +
-    geom_histogram(bins=40, fill="lightblue", colour="darkblue") +
-    ggtitle(paste("View",v)) +
-    theme_minimal()
-})
 
-grid.arrange(grobs=plots, ncol=2)
 
+V <- 2
 sim <- simulate_multiview_data(n=200, V=V)
 
 x               <- sim$x
@@ -77,6 +71,7 @@ res_gibbs <- run_gibbs_cpp(
   burn_in    = burn_in,
   thin       = thin
 )
+
 
 n <- nrow(x)
 S <- length(res_gibbs$table_of)
@@ -106,6 +101,8 @@ for (s in seq_len(S)) {
     cluster_list[[v]][,s] <- relabel_to_1K(lab_mat[,v])
 }
 
+
+
 view_idx1 <- 1
 view_idx2 <- 2
 
@@ -118,6 +115,8 @@ psm2 <- comp.psm(cl2_t)
 cluster1_def_raw <- minVI(psm1)$cl
 cluster2_def_raw <- minVI(psm2)$cl
 
+
+
 align_to_true <- function(z_hat, z_true) {
   z_hat  <- as.integer(z_hat)
   z_true <- as.integer(z_true)
@@ -128,13 +127,14 @@ align_to_true <- function(z_hat, z_true) {
   K_hat  <- max(z_hat)
   K_true <- max(z_true)
   
+
   M <- matrix(0L, nrow = K_hat, ncol = K_true)
   for (i in seq_along(z_hat)) {
     M[z_hat[i], z_true[i]] <- M[z_hat[i], z_true[i]] + 1L
   }
   
   cost <- max(M) - M
-  perm <- solve_LSAP(cost)
+  perm <- solve_LSAP(cost)   
   
   z_new <- z_hat
   for (k in seq_len(K_hat)) {
@@ -148,6 +148,7 @@ true2 <- true_clust_list[[view_idx2]]
 
 cluster1_def <- align_to_true(cluster1_def_raw, true1)
 cluster2_def <- align_to_true(cluster2_def_raw, true2)
+
 
 x$cluster_v1_def <- cluster1_def
 x$cluster_v2_def <- cluster2_def
@@ -176,4 +177,12 @@ g_scatter <- ggplot(x, aes_string(x=paste0("view",view_idx1),
 print(g_scatter)
 
 
+plots <- lapply(seq_len(V), function(v){
+  ggplot(data.frame(val=x[[paste0("view",v)]]), aes(val)) +
+    geom_histogram(bins=40, fill="lightblue", colour="darkblue") +
+    ggtitle(paste("View",v)) +
+    theme_minimal()
+})
+
+grid.arrange(grobs=plots, ncol=2)
 

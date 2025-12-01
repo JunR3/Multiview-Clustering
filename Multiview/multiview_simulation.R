@@ -115,7 +115,11 @@ for (s in seq_len(S)) {
 
 # ---- Compare any pair of views
 view_idx1 <- 2
+<<<<<<< HEAD
 view_idx2 <-  4# could choose 4 or 5 as well
+=======
+view_idx2 <- 3  # could choose 4 or 5 as well
+>>>>>>> af6aceef0e53641e8281cbb687b845c61ac1770c
 
 cl1_t <- t(cluster_list[[view_idx1]])
 cl2_t <- t(cluster_list[[view_idx2]])

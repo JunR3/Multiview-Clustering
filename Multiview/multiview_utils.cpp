@@ -283,12 +283,20 @@ void assign_dishes_new_table(int i, int t_new) {
 void save_state() {
   saved_table_of.push_back(table_of);
   saved_dish_of.push_back(dish_of);
+
+  // Saving hyperparameters
+  saved_alpha_global.push_back(alpha_global);
+  saved_sigma_global.push_back(sigma_global);
+  for (int v = 0; v < d; v++) {
+    const ViewState &V = views[v];
+    saved_alpha_v[v].push_back(V.alpha_v);
+    saved_sigma_v[v].push_back(V.sigma_v);
+    saved_tau_v[v].push_back(V.tau_v);
+  }
 }
 
 double uniform01() { return R::runif(0.0, 1.0); }
 double rnorm_scalar(double mean, double sd) { return R::rnorm(mean, sd); }
-
-
 
 double compute_f_vk(int v, int k, int i) {
   const ViewState &V = views[v];

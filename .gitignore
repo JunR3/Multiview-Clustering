@@ -11,3 +11,9 @@
 *.so
 *.dll
 *.exe
+
+# VS Code folder
+.vscode/
+
+# Unit test binary
+unit_tests

@@ -18,3 +18,10 @@ std::vector<ViewState> views;
 std::vector<std::vector<int>> saved_table_of;
 std::vector<std::vector<std::vector<int>>> saved_dish_of;
 std::vector<double> saved_loglik;
+
+// Saved hyperparameters (for output to R)
+std::vector<std::vector<double>> saved_alpha_v;
+std::vector<std::vector<double>> saved_sigma_v;
+std::vector<std::vector<double>> saved_tau_v;
+std::vector<double> saved_alpha_global;
+std::vector<double> saved_sigma_global;

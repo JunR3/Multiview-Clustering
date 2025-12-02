@@ -37,4 +37,11 @@ extern std::vector<std::vector<int>> saved_table_of;
 extern std::vector<std::vector<std::vector<int>>> saved_dish_of;
 extern std::vector<double> saved_loglik;
 
+// Saved hyperparameters (for output to R)
+extern std::vector<std::vector<double>> saved_alpha_v;
+extern std::vector<std::vector<double>> saved_sigma_v;
+extern std::vector<std::vector<double>> saved_tau_v;
+extern std::vector<double> saved_alpha_global;
+extern std::vector<double> saved_sigma_global;
+
 #endif // MULTIVIEW_STATE_H

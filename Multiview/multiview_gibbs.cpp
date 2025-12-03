@@ -11,6 +11,7 @@ using namespace Rcpp;
 
 static void initialize_state_from_data() {
   
+  // Do we really want fixed initializations ?
   int K_init_tables = 4; 
   int K_init_dishes = 2; 
   
@@ -21,7 +22,6 @@ static void initialize_state_from_data() {
   
   customers_at_table.clear();
   customers_at_table.resize(T);
-  
   
   for (int i = 0; i < n; ++i) {
     int t = static_cast<int>(std::floor(R::runif(0.0, (double)T)));
@@ -92,7 +92,7 @@ static void initialize_state_from_data() {
       var = 1.0;
     }
     if (var <= 0.0) var = 1.0;
-    V.tau_v = var*0.25;
+    V.tau_v = var*0.25 * 0.01; // modified so the values of tau_v are closer to their final values
   }
   
   alpha_global = 1;
@@ -122,7 +122,12 @@ Rcpp::List run_gibbs_cpp(const Rcpp::List& data_views,
   return Rcpp::List::create(
     Rcpp::Named("table_of") = saved_table_of,
     Rcpp::Named("dish_of") = saved_dish_of,
-    Rcpp::Named("loglik")  = saved_loglik
+    Rcpp::Named("loglik")  = saved_loglik,
+    Rcpp::Named("alpha_v") = saved_alpha_v,
+    Rcpp::Named("sigma_v") = saved_sigma_v,
+    Rcpp::Named("tau_v")   = saved_tau_v,
+    Rcpp::Named("alpha_global") = saved_alpha_global,
+    Rcpp::Named("sigma_global") = saved_sigma_global
   );
 }
 // multiview_gibbs.cpp
@@ -133,6 +138,11 @@ void gibbs_sampler(int M, int burn_in, int thin) {
   saved_table_of.clear();
   saved_dish_of.clear();
   saved_loglik.clear();
+  saved_alpha_v.assign(d, {});
+  saved_sigma_v.assign(d, {});
+  saved_tau_v.assign(d, {});
+  saved_alpha_global.clear();
+  saved_sigma_global.clear();
   
   
   std::vector<std::unordered_map<int, double>> workspace_cache(d);
@@ -193,9 +203,13 @@ void gibbs_sampler(int M, int burn_in, int thin) {
     
     update_hyperparameters();
     
-    
-    if (iter >= burn_in && ((iter - burn_in) % thin == 0)) {
+    // Save state after burn-in and thinning
+    /*if (iter >= burn_in && ((iter - burn_in) % thin == 0)) {
       save_state();
-    }
+    }*/
+   if (iter % thin == 0) {
+    save_state(); // Save one in every "thin" iteration for now
+   }
+    
   }
 }

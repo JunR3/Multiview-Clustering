@@ -172,6 +172,7 @@ double propose_tau(double tau_old) {
   
   return std::exp(log_tau_prop);
 }
+
 double log_posterior_given_tau(int v, double tau_candidate) {
   const ViewState &V = views[v];
   
@@ -228,7 +229,6 @@ void update_tau_v_MH() {
       V.tau_v = tau_prop;
   }
 }
-
 
 void update_hyperparameters() {
   if (views.empty())

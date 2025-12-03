@@ -1,4 +1,5 @@
 library(dplyr)
+library(tidyr)
 library(ggplot2)
 library(cowplot)
 library(Rcpp)
@@ -65,8 +66,8 @@ data_views      <- sim$data_views
 
 
 nsim    <- 10000
-burn_in <- 5000
-thin    <- 1
+burn_in <- 500
+thin    <- 10
 
 res_gibbs <- run_gibbs_cpp(
   data_views = data_views,
@@ -77,6 +78,77 @@ res_gibbs <- run_gibbs_cpp(
 
 n <- nrow(x)
 S <- length(res_gibbs$table_of)
+
+
+
+################################################################################
+#
+#                      TRACE PLOTS OF HYPERPARAMETERS
+#
+################################################################################
+
+
+
+# Global traces
+df_global <- data.frame(
+  iter = seq_along(res_gibbs$alpha_global),
+  alpha_global = res_gibbs$alpha_global,
+  sigma_global = res_gibbs$sigma_global
+)
+
+p_alpha_g <- ggplot(df_global, aes(iter, alpha_global)) +
+  geom_line() + theme_minimal() +
+  labs(title = "alpha_global trace")
+p_sigma_g <- ggplot(df_global, aes(iter, sigma_global)) +
+  geom_line() + theme_minimal() +
+  labs(title = "sigma_global trace")
+
+# Per-view: alpha_v/sigma_v/tau_v are list(view) -> numeric(iter)
+n_views <- length(res_gibbs$alpha_v)
+n_iter  <- length(res_gibbs$alpha_v[[1]])
+
+alpha_df <- bind_rows(lapply(seq_len(n_views), function(v) {
+  data.frame(
+    iter  = seq_len(n_iter),
+    view  = v,
+    alpha = res_gibbs$alpha_v[[v]],
+    sigma = res_gibbs$sigma_v[[v]],
+    tau   = res_gibbs$tau_v[[v]]
+  )
+}))
+
+# One plot per parameter, lines colored by view
+p_alpha_v <- ggplot(alpha_df, aes(iter, alpha, colour = factor(view))) +
+  geom_line() + theme_minimal() +
+  labs(title = "alpha_v by view", colour = "view")
+p_sigma_v <- ggplot(alpha_df, aes(iter, sigma, colour = factor(view))) +
+  geom_line() + theme_minimal() +
+  labs(title = "sigma_v by view", colour = "view")
+p_tau_v <- ggplot(alpha_df, aes(iter, tau, colour = factor(view))) +
+  geom_line() + theme_minimal() +
+  labs(title = "tau_v by view", colour = "view")
+
+# All params per view in one panel
+param_df <- pivot_longer(alpha_df, cols = c(alpha, sigma, tau),
+                         names_to = "param", values_to = "value")
+p_by_view <- ggplot(param_df, aes(iter, value, colour = param)) +
+  geom_line() + theme_minimal() +
+  facet_wrap(~ view, scales = "free_y") +
+  labs(title = "View-specific hyperparameters", colour = "param")
+
+# Print our graphs
+print(p_alpha_g); print(p_sigma_g)
+print(p_alpha_v); print(p_sigma_v); print(p_tau_v)
+# or
+print(p_by_view)
+
+
+
+################################################################################
+#
+#                          PLOTS OF THE CLUSTERS
+#
+################################################################################
 
 
 cluster_list <- lapply(seq_len(V),

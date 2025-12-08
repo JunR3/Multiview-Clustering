@@ -246,7 +246,6 @@ ari_scores <- sapply(1:5, function(v) mcclust::arandi(my_clusters[,v], true_clus
 names(ari_scores) <- paste0("View_", 1:5)
 print(ari_scores)
 
-<<<<<<< HEAD
 
 print(table(Predicted = my_clusters[,1], Truth = true_clust_list[[1]]))
 
@@ -261,7 +260,7 @@ print(table(Predicted = my_clusters[,4], Truth = true_clust_list[[4]]))
 
 
 print(table(Predicted = my_clusters[,5], Truth = true_clust_list[[5]]))
-=======
+
 print(table(Predicted = my_clusters[,2], Truth = true_clust_list[[2]]))
 
 ################################################################################
@@ -324,4 +323,4 @@ print(p_alpha_g); print(p_sigma_g)
 print(p_alpha_v); print(p_sigma_v); print(p_tau_v)
 # or
 print(p_by_view)
->>>>>>> b9514fa4b43ed61c688cb89393d1a2f9cd3e2fa9
+

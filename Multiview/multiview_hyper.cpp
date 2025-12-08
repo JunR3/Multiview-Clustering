@@ -1,4 +1,4 @@
-// multiview_hyper.cpp - Revised
+// multiview_hyper.cpp
 #include "multiview_hyper.h"
 #include "multiview_utils.h"
 #include "multiview_state.h"
@@ -41,7 +41,7 @@ constexpr double kEps = 1e-6;
   }
   
   double log_posterior_sigma_view(int v, double sigma_candidate) {
-    // FIX 1: Use kEps for boundary checks to be consistent with proposal function
+
     if (sigma_candidate <= kEps || sigma_candidate >= 1.0 - kEps) return -INFINITY; 
     const double alpha = views[v].alpha_v;
     
@@ -63,8 +63,6 @@ constexpr double kEps = 1e-6;
       logp += std::log(term);
     }
     
-    // FIX 2: Optimization - Use global 'n' (total customers) instead of re-summing n_t.
-    // NOTE: This assumes 'n' (total number of customers) is a globally accessible variable.
     const int total_customers = n; 
     
     for (int i = 1; i < total_customers; ++i) {
@@ -112,7 +110,6 @@ constexpr double kEps = 1e-6;
   double reflect_into_unit_interval(double value) {
     double prop = value;
     
-    // Adjusted reflection logic to handle boundaries defined by kEps
     while (prop <= kEps || prop >= 1.0 - kEps) {
       if (prop <= kEps)
         prop = 2.0 * kEps - prop;
@@ -167,7 +164,6 @@ void initialize_hyperparameters() {
 
 
 double propose_tau(double tau_old) {
-  // FIX 3: Increased step size for better exploration of high variance values
   const double step_size = 0.3; 
   
   double log_tau_old = std::log(tau_old);

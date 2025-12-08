@@ -1,6 +1,6 @@
 // multiview_gibbs.cpp
 #include <Rcpp.h>
-#include <numeric> 
+#include <numeric>
 #include <cmath>
 #include "multiview_state.h"
 #include "multiview_gibbs.h"
@@ -11,9 +11,8 @@ using namespace Rcpp;
 
 static void initialize_state_from_data() {
   
-  // Do we really want fixed initializations ?
-  int K_init_tables = 4; 
-  int K_init_dishes = 2; 
+  int K_init_tables = 4;
+  int K_init_dishes = 2;
   
   
   T = K_init_tables;
@@ -45,7 +44,7 @@ static void initialize_state_from_data() {
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
     
-    V.K = K_init_dishes; 
+    V.K = K_init_dishes;
     V.n_vk.assign(V.K, 0);
     V.l_vk.assign(V.K, 0);
     V.sum_y.assign(V.K, 0.0);
@@ -59,7 +58,7 @@ static void initialize_state_from_data() {
       if (k >= V.K) k = V.K - 1;
       
       dish_of[v][t] = k;
-      V.l_vk[k]++; 
+      V.l_vk[k]++;
     }
     
     for (int i = 0; i < n; ++i) {
@@ -92,7 +91,7 @@ static void initialize_state_from_data() {
       var = 1.0;
     }
     if (var <= 0.0) var = 1.0;
-    V.tau_v = var*0.25 * 0.01; // modified so the values of tau_v are closer to their final values
+    V.tau_v = var*0.25 * 0.01;
   }
   
   alpha_global = 1;
@@ -122,16 +121,15 @@ Rcpp::List run_gibbs_cpp(const Rcpp::List& data_views,
   return Rcpp::List::create(
     Rcpp::Named("table_of") = saved_table_of,
     Rcpp::Named("dish_of") = saved_dish_of,
-    Rcpp::Named("loglik")  = saved_loglik,
+    Rcpp::Named("loglik") = saved_loglik,
     Rcpp::Named("alpha_v") = saved_alpha_v,
     Rcpp::Named("sigma_v") = saved_sigma_v,
-    Rcpp::Named("tau_v")   = saved_tau_v,
+    Rcpp::Named("tau_v") = saved_tau_v,
     Rcpp::Named("alpha_global") = saved_alpha_global,
     Rcpp::Named("sigma_global") = saved_sigma_global
   );
 }
 // multiview_gibbs.cpp
-// ... (include e init invariati) ...
 
 void gibbs_sampler(int M, int burn_in, int thin) {
   
@@ -203,13 +201,12 @@ void gibbs_sampler(int M, int burn_in, int thin) {
     
     update_hyperparameters();
     
-    // Save state after burn-in and thinning
-    /*if (iter >= burn_in && ((iter - burn_in) % thin == 0)) {
+    
+    if (iter >= burn_in && ((iter - burn_in) % thin == 0)) {
       save_state();
-    }*/
-   if (iter % thin == 0) {
-    save_state(); // Save one in every "thin" iteration for now
-   }
+      
+      
+    }
     
   }
 }

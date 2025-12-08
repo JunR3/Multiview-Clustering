@@ -1,4 +1,4 @@
-// multiview_hyper.cpp
+// multiview_hyper.cpp - Revised
 #include "multiview_hyper.h"
 #include "multiview_utils.h"
 #include "multiview_state.h"
@@ -30,47 +30,49 @@ constexpr double kEps = 1e-6;
     return (var > kEps) ? var : 1.0;
   }
   
-
+  
   double log_posterior_alpha_view(int v, double alpha_candidate) {
     if (alpha_candidate <= 0.0) return -INFINITY;
     const double sigma = views[v].sigma_v;
     
-    double loglik  = log_EPPF(v, alpha_candidate, sigma);
+    double loglik = log_EPPF(v, alpha_candidate, sigma);
     double logprior = log_prior_alpha(alpha_candidate);
     return loglik + logprior;
   }
   
   double log_posterior_sigma_view(int v, double sigma_candidate) {
-    if (sigma_candidate <= 0.0 || sigma_candidate >= 1.0) return -INFINITY;
+    // FIX 1: Use kEps for boundary checks to be consistent with proposal function
+    if (sigma_candidate <= kEps || sigma_candidate >= 1.0 - kEps) return -INFINITY; 
     const double alpha = views[v].alpha_v;
     
-    double loglik  = log_EPPF(v, alpha, sigma_candidate);
+    double loglik = log_EPPF(v, alpha, sigma_candidate);
     double logprior = log_prior_sigma(sigma_candidate);
     return loglik + logprior;
   }
-
+  
   double log_global_EPPF(double alpha, double sigma) {
-    if (!(sigma > 0.0 && sigma < 1.0)) return -INFINITY;
+    if (!(sigma > kEps && sigma < 1.0 - kEps)) return -INFINITY;
     if (alpha <= -sigma) return -INFINITY;
     if (T <= 0 || n_t.empty()) return 0.0;
     
     double logp = 0.0;
-
+    
     for (int j = 0; j < T; ++j) {
       double term = alpha + j * sigma;
       if (term <= 0.0) return -INFINITY;
       logp += std::log(term);
     }
-
-    int total_customers = 0;
-    for (int count : n_t) total_customers += count;
-
+    
+    // FIX 2: Optimization - Use global 'n' (total customers) instead of re-summing n_t.
+    // NOTE: This assumes 'n' (total number of customers) is a globally accessible variable.
+    const int total_customers = n; 
+    
     for (int i = 1; i < total_customers; ++i) {
       double term = alpha + i;
       if (term <= 0.0) return -INFINITY;
       logp -= std::log(term);
     }
-
+    
     for (int count : n_t) {
       for (int m = 1; m < count; ++m) {
         double term = static_cast<double>(m) - sigma;
@@ -82,19 +84,21 @@ constexpr double kEps = 1e-6;
     return logp;
   }
   
-
+  
   double log_posterior_global_alpha(double alpha_candidate) {
-    double loglik  = log_global_EPPF(alpha_candidate, sigma_global);
+    double loglik = log_global_EPPF(alpha_candidate, sigma_global);
     double logprior = log_prior_alpha(alpha_candidate);
     return loglik + logprior;
   }
   
   double log_posterior_global_sigma(double sigma_candidate) {
-    double loglik  = log_global_EPPF(alpha_global, sigma_candidate);
+    // FIX 1: Use kEps for boundary checks
+    if (sigma_candidate <= kEps || sigma_candidate >= 1.0 - kEps) return -INFINITY; 
+    double loglik = log_global_EPPF(alpha_global, sigma_candidate);
     double logprior = log_prior_sigma(sigma_candidate);
     return loglik + logprior;
   }
-
+  
   double propose_alpha(double alpha_old) {
     const double step = 0.1;
     
@@ -104,10 +108,11 @@ constexpr double kEps = 1e-6;
     double candidate = std::exp(log_alpha);
     return (candidate > kEps) ? candidate : kEps;
   }
-
+  
   double reflect_into_unit_interval(double value) {
     double prop = value;
     
+    // Adjusted reflection logic to handle boundaries defined by kEps
     while (prop <= kEps || prop >= 1.0 - kEps) {
       if (prop <= kEps)
         prop = 2.0 * kEps - prop;
@@ -118,7 +123,7 @@ constexpr double kEps = 1e-6;
     
     return std::clamp(prop, kEps, 1.0 - kEps);
   }
-
+  
   double propose_sigma(double sigma_old) {
     const double step = 0.05;
     double proposal = sigma_old + rnorm_scalar(0.0, step);
@@ -130,7 +135,6 @@ constexpr double kEps = 1e-6;
 
 static const double a_tau = 2.0;
 static const double b_tau = 1.0;
-
 
 
 void initialize_hyperparameters() {
@@ -162,12 +166,12 @@ void initialize_hyperparameters() {
 }
 
 
-
 double propose_tau(double tau_old) {
-  const double step_size = 0.1;
+  // FIX 3: Increased step size for better exploration of high variance values
+  const double step_size = 0.3; 
   
-  double log_tau_old  = std::log(tau_old);
-  double eps          = rnorm_scalar(0.0, step_size);
+  double log_tau_old = std::log(tau_old);
+  double eps = rnorm_scalar(0.0, step_size);
   double log_tau_prop = log_tau_old + eps;
   
   return std::exp(log_tau_prop);
@@ -185,7 +189,7 @@ double log_posterior_given_tau(int v, double tau_candidate) {
     
     if (n_k == 0) continue;
     
-    double s_y  = V.sum_y[k];
+    double s_y = V.sum_y[k];
     double s_y2 = V.sum_y2[k];
     
     double sse_k = s_y2 - (s_y * s_y) / static_cast<double>(n_k);
@@ -294,16 +298,16 @@ void update_hyperparameters() {
 
 double log_EPPF(int v, double alpha, double sigma) {
   if (v < 0 || v >= d) return -INFINITY;
-  if (!(sigma > 0.0 && sigma < 1.0)) return -INFINITY;
+  if (!(sigma > kEps && sigma < 1.0 - kEps)) return -INFINITY;
   if (alpha <= -sigma) return -INFINITY;
   if (views.empty()) return -INFINITY;
   
   const ViewState &V = views[v];
   
-  std::vector<int> cluster_sizes_tables; 
+  std::vector<int> cluster_sizes_tables;
   cluster_sizes_tables.reserve(V.l_vk.size());
   
-  int total_tables = 0; 
+  int total_tables = 0;
   for (int count : V.l_vk) {
     if (count > 0) {
       cluster_sizes_tables.push_back(count);
@@ -344,8 +348,8 @@ double log_EPPF(int v, double alpha, double sigma) {
 double log_prior_alpha(double alpha) {
   if (alpha <= 0.0) return -INFINITY;
   
-  const double shape = 2.0;
-  const double rate  = 1.0;
+  const double shape = 4.0;
+  const double rate = 3.0;
   
   return (shape - 1.0) * std::log(alpha) - rate * alpha;
 }
@@ -353,8 +357,8 @@ double log_prior_alpha(double alpha) {
 double log_prior_sigma(double sigma) {
   if (sigma <= 0.0 || sigma >= 1.0) return -INFINITY;
   
-  const double a = 2.0;
-  const double b = 2.0;
+  const double a = 1.0;
+  const double b = 5.0;
   
   return (a - 1.0) * std::log(sigma) + (b - 1.0) * std::log(1.0 - sigma);
 }

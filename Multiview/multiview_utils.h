@@ -1,3 +1,4 @@
+
 // multiview_utils.h
 #ifndef MULTIVIEW_UTILS_H
 #define MULTIVIEW_UTILS_H
@@ -40,3 +41,6 @@ double uniform01();
 double rnorm_scalar(double mean, double sd);
 
 #endif // MULTIVIEW_UTILS_H
+ 
+ 
+ 

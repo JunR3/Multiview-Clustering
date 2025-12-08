@@ -20,20 +20,20 @@ x <- data.frame(
   
   # View 2: 3 Clusters. Split is 50/100/50 to sum 200. Means at 0, -12, 12.
   view2 = c(rnorm(50, mean = 0, sd = 1), 
-            rnorm(100, mean = -12, sd = 1), 
-            rnorm(50, mean = 12, sd = 1)), 
+            rnorm(100, mean = -10, sd = 1), 
+            rnorm(50, mean = 10, sd = 1)), 
   
   # View 3: 2 Clusters (100 data points each). Means at 10 and -10.
   view3 = c(rnorm(100, mean = 10, sd = 1), 
             rnorm(100, mean = -10, sd = 1)),
   
   # View 4: 2 Clusters. Means at 9 and -9.
-  view4 = c(rnorm(100, mean = 9, sd = 1), 
-   rnorm(100, mean = -9, sd = 1)),
+  view4 = c(rnorm(100, mean = 10, sd = 1), 
+   rnorm(100, mean = -10, sd = 1)),
   # 
   # # View 5: 2 Clusters. Means at 1 and 8.
-  view5 = c(rnorm(100, mean = 1, sd = 1), 
-   rnorm(100, mean = 8, sd = 1)),
+  view5 = c(rnorm(100, mean = -5, sd = 1), 
+   rnorm(100, mean = 5, sd = 1)),
   
   # Categorical variable for context (Tables)
   tables = sample(c(1:19), size = 200, replace = TRUE)
@@ -59,7 +59,7 @@ print(head(x))
 # - All other views use 'true_clust_2groups'
 get_labels_for_view <- function(view_name) {
   if (view_name == "view2") {
-    return(as.factor(true_labels_2_clusters))
+    return(as.factor(true_labels_3_clusters))
     #return(as.factor(true_labels_3_clusters))
   } else {
     return(as.factor(true_labels_2_clusters))
@@ -246,4 +246,17 @@ ari_scores <- sapply(1:5, function(v) mcclust::arandi(my_clusters[,v], true_clus
 names(ari_scores) <- paste0("View_", 1:5)
 print(ari_scores)
 
+
+print(table(Predicted = my_clusters[,1], Truth = true_clust_list[[1]]))
+
 print(table(Predicted = my_clusters[,2], Truth = true_clust_list[[2]]))
+
+
+
+print(table(Predicted = my_clusters[,3], Truth = true_clust_list[[3]]))
+
+
+print(table(Predicted = my_clusters[,4], Truth = true_clust_list[[4]]))
+
+
+print(table(Predicted = my_clusters[,5], Truth = true_clust_list[[5]]))

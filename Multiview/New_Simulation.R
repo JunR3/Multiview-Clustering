@@ -246,6 +246,7 @@ ari_scores <- sapply(1:5, function(v) mcclust::arandi(my_clusters[,v], true_clus
 names(ari_scores) <- paste0("View_", 1:5)
 print(ari_scores)
 
+<<<<<<< HEAD
 
 print(table(Predicted = my_clusters[,1], Truth = true_clust_list[[1]]))
 
@@ -260,3 +261,67 @@ print(table(Predicted = my_clusters[,4], Truth = true_clust_list[[4]]))
 
 
 print(table(Predicted = my_clusters[,5], Truth = true_clust_list[[5]]))
+=======
+print(table(Predicted = my_clusters[,2], Truth = true_clust_list[[2]]))
+
+################################################################################
+#
+#                      TRACE PLOTS OF HYPERPARAMETERS
+#
+################################################################################
+
+
+
+# Global traces
+df_global <- data.frame(
+  iter = seq_along(res_gibbs$alpha_global),
+  alpha_global = res_gibbs$alpha_global,
+  sigma_global = res_gibbs$sigma_global
+)
+
+p_alpha_g <- ggplot(df_global, aes(iter, alpha_global)) +
+  geom_line() + theme_minimal() +
+  labs(title = "alpha_global trace")
+p_sigma_g <- ggplot(df_global, aes(iter, sigma_global)) +
+  geom_line() + theme_minimal() +
+  labs(title = "sigma_global trace")
+
+# Per-view: alpha_v/sigma_v/tau_v are list(view) -> numeric(iter)
+n_views <- length(res_gibbs$alpha_v)
+n_iter  <- length(res_gibbs$alpha_v[[1]])
+
+alpha_df <- bind_rows(lapply(seq_len(n_views), function(v) {
+  data.frame(
+    iter  = seq_len(n_iter),
+    view  = v,
+    alpha = res_gibbs$alpha_v[[v]],
+    sigma = res_gibbs$sigma_v[[v]],
+    tau   = res_gibbs$tau_v[[v]]
+  )
+}))
+
+# One plot per parameter, lines colored by view
+p_alpha_v <- ggplot(alpha_df, aes(iter, alpha, colour = factor(view))) +
+  geom_line() + theme_minimal() +
+  labs(title = "alpha_v by view", colour = "view")
+p_sigma_v <- ggplot(alpha_df, aes(iter, sigma, colour = factor(view))) +
+  geom_line() + theme_minimal() +
+  labs(title = "sigma_v by view", colour = "view")
+p_tau_v <- ggplot(alpha_df, aes(iter, tau, colour = factor(view))) +
+  geom_line() + theme_minimal() +
+  labs(title = "tau_v by view", colour = "view")
+
+# All params per view in one panel
+param_df <- pivot_longer(alpha_df, cols = c(alpha, sigma, tau),
+                         names_to = "param", values_to = "value")
+p_by_view <- ggplot(param_df, aes(iter, value, colour = param)) +
+  geom_line() + theme_minimal() +
+  facet_wrap(~ view, scales = "free_y") +
+  labs(title = "View-specific hyperparameters", colour = "param")
+
+# Print our graphs
+print(p_alpha_g); print(p_sigma_g)
+print(p_alpha_v); print(p_sigma_v); print(p_tau_v)
+# or
+print(p_by_view)
+>>>>>>> b9514fa4b43ed61c688cb89393d1a2f9cd3e2fa9

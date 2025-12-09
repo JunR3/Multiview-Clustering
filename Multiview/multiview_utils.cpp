@@ -12,7 +12,6 @@ using namespace Rcpp;
 std::vector<double> global_view_variance;
 
 constexpr double mu_0 = 50.0;
-constexpr double kappa_0 = 0.1;
 
 void ensure_global_variances_calculated() {
   if ((int)global_view_variance.size() != d) {
@@ -305,34 +304,35 @@ void save_state() {
 
 double uniform01() { return R::runif(0.0, 1.0); }
 double rnorm_scalar(double mean, double sd) { return R::rnorm(mean, sd); }
-
 double compute_f_vk(int v, int k, int i) {
   const ViewState &V = views[v];
   
   double yvi = y[v][i];
   double tau = V.tau_v;
   
-  int n = V.n_vk[k];
+  int    n  = V.n_vk[k];
   double S1 = V.sum_y[k];
   double S2 = V.sum_y2[k];
   
-  double term1_old = -0.5 * S2 / tau;
+  // log p_old(y_{S_k})
+  double term1_old   = -0.5 * S2 / tau;
+  double term2_old   =  0.5 * (S1 * S1) / (tau * (tau + n));
+  double log_det_old = -0.5 * n * std::log(2.0 * M_PI * tau)
+    -0.5 * std::log(tau * (tau + n));
   
-  double term2_old = 0.5 * (S1 * S1) / (tau * (kappa_0 + n));
-  
-  double log_det_old = -0.5 * n * std::log(2.0 * M_PI * tau) - 0.5 * std::log(tau * (kappa_0 + n));
-  
-  int n_new = n + 1;
+  int    n_new  = n + 1;
   double S1_new = S1 + yvi;
-  double S2_new = S2 + (yvi * yvi);
+  double S2_new = S2 + yvi * yvi;
   
-  double term1_new = -0.5 * S2_new / tau;
+  // log p_new(y_{S_k} ∪ {i})
+  double term1_new   = -0.5 * S2_new / tau;
+  double term2_new   =  0.5 * (S1_new * S1_new) / (tau * (tau + n_new));
+  double log_det_new = -0.5 * n_new * std::log(2.0 * M_PI * tau)
+    -0.5 * std::log(tau * (tau + n_new));
   
-  double term2_new = 0.5 * (S1_new * S1_new) / (tau * (kappa_0 + n_new));
-  
-  double log_det_new = -0.5 * n_new * std::log(2.0 * M_PI * tau) - 0.5 * std::log(tau * (kappa_0 + n_new));
-  
-  double log_predictive = (log_det_new + term1_new + term2_new) - (log_det_old + term1_old + term2_old);
+  double log_predictive =
+  (log_det_new + term1_new + term2_new) -
+  (log_det_old + term1_old + term2_old);
   
   return std::exp(log_predictive);
 }
@@ -344,7 +344,7 @@ double compute_f_vk_new(int v, int i) {
   double tau = V.tau_v;
   
   double log_norm = -0.5 * std::log(2.0 * M_PI * tau);
-  double log_exp = -0.5 * (yvi * yvi) / tau;
+  double log_exp  = -0.5 * (yvi * yvi) / tau;
   
   return std::exp(log_norm + log_exp);
 }

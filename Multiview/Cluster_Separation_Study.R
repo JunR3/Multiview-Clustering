@@ -80,23 +80,54 @@ generate_multiview_dataset <- function(n_obs = 200, separation = 3.0,
     )
 }
 
-get_final_clusters <- function(res_gibbs) {
-    last_iter_idx <- length(res_gibbs$table_of)
-    raw_tables <- res_gibbs$table_of[[last_iter_idx]]
-    raw_dishes <- res_gibbs$dish_of[[last_iter_idx]]
+get_final_clusters <- function(res_gibbs, n_samples = 100) {
+    cat("Getting final clusters\n")
+    # Use last n_samples iterations to build posterior similarity matrix
+    n_iters <- length(res_gibbs$table_of)
+    start_idx <- max(1, n_iters - n_samples + 1)
+    sample_indices <- start_idx:n_iters
 
-    tables_r_index <- raw_tables + 1
-    n_customers <- length(tables_r_index)
-    n_views <- length(raw_dishes)
+    # Get dimensions from first sample
+    first_tables <- res_gibbs$table_of[[sample_indices[1]]]
+    n_customers <- length(first_tables)
+    n_views <- length(res_gibbs$dish_of[[sample_indices[1]]])
 
     cluster_matrix <- matrix(NA, nrow = n_customers, ncol = n_views)
     colnames(cluster_matrix) <- paste0("View_", 1:n_views)
 
+    # For each view, build PSM and find optimal partition via minVI
+    cat("Building PSM and finding optimal partition via minVI\n")
     for (v in 1:n_views) {
-        dishes_for_view <- raw_dishes[[v]]
-        cluster_matrix[, v] <- dishes_for_view[tables_r_index]
+        # Collect cluster assignments across samples for this view
+        cluster_samples <- matrix(NA, nrow = length(sample_indices), ncol = n_customers)
+
+        for (i in seq_along(sample_indices)) {
+            cat("Processing sample", i, "\n")
+            idx <- sample_indices[i]
+            tables_r_index <- res_gibbs$table_of[[idx]] + 1
+            dishes_for_view <- res_gibbs$dish_of[[idx]][[v]]
+            cluster_samples[i, ] <- dishes_for_view[tables_r_index]
+        }
+
+        # Normalize labels to be consecutive integers starting from 1
+        # comp.psm requires labels in 1:nobs format
+        for (i in 1:nrow(cluster_samples)) {
+            cluster_samples[i, ] <- as.integer(as.factor(cluster_samples[i, ]))
+        }
+
+        # Build posterior similarity matrix
+        cat("Building PSM\n")
+        psm <- mcclust::comp.psm(cluster_samples)
+
+        # Find partition minimizing Variation of Information
+        cat("Finding partition minimizing Variation of Information\n")
+        vi_result <- mcclust.ext::minVI(psm, method = "avg")
+        cat("Found partition minimizing Variation of Information\n")
+        cluster_matrix[, v] <- vi_result$cl
+        cat("Done finding partition minimizing Variation of Information\n")
     }
 
+    cat("Done getting final clusters\n")
     cluster_matrix
 }
 
@@ -143,6 +174,7 @@ run_separation_sweep <- function(separations = seq(6, 0.5, by = -0.5),
         )
 
         predicted <- get_final_clusters(res_gibbs)
+        cat("Got final clusters\n")
         ari_scores <- compute_ari_scores(predicted, dataset$true_labels)
 
         n_clusters_found <- sapply(1:5, function(v) length(unique(predicted[, v])))

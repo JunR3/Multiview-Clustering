@@ -111,6 +111,7 @@ get_final_clusters <- function(res_gibbs, n_samples = 100) {
 
         # Normalize labels to be consecutive integers starting from 1
         # comp.psm requires labels in 1:nobs format
+        # This is a bit of a hack, but it works
         for (i in 1:nrow(cluster_samples)) {
             cluster_samples[i, ] <- as.integer(as.factor(cluster_samples[i, ]))
         }

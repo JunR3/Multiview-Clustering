@@ -1,4 +1,4 @@
-// multiview_utils.cpp - Revised for Marginalized Sampler (PPD)
+// multiview_utils.cpp - Revised for Marginalized Sampler (PPD) with Full Swap-and-Pop
 #include <Rcpp.h>
 #include <algorithm>
 #include <unordered_map>
@@ -139,7 +139,7 @@ void remove_customer(int i) {
   int t = table_of[i];
   
   if (t < 0 || t >= T) Rcpp::stop("remove_customer: invalid table");
-  
+
   auto &list_t = customers_at_table[t];
   auto it = std::find(list_t.begin(), list_t.end(), i);
   if (it == list_t.end()) Rcpp::stop("customer not at table");
@@ -160,7 +160,6 @@ void remove_customer(int i) {
     auto it2 = std::find(list_k.begin(), list_k.end(), i);
     std::swap(*it2, list_k.back());
     list_k.pop_back();
-    
   }
   
   table_of[i] = -1;
@@ -169,16 +168,47 @@ void remove_customer(int i) {
     
     for (int v = 0; v < d; ++v) {
       int k = dish_of[v][t];
-      if(k >= 0 && views[v].l_vk[k] > 0) views[v].l_vk[k]--;
+      ViewState &V = views[v];
+      
+      if(k >= 0 && V.l_vk[k] > 0) {
+        V.l_vk[k]--; 
+        
+        if (V.l_vk[k] == 0) {
+          int last_k = V.K - 1;
+          
+          if (k != last_k) {
+            V.l_vk[k] = V.l_vk[last_k];
+            V.n_vk[k] = V.n_vk[last_k];
+            V.sum_y[k] = V.sum_y[last_k];
+            V.sum_y2[k] = V.sum_y2[last_k];
+            V.customers_at_dish[k] = std::move(V.customers_at_dish[last_k]);
+
+            for (int tt = 0; tt < T; ++tt) {
+              if (dish_of[v][tt] == last_k) {
+                dish_of[v][tt] = k;
+              }
+            }
+          }
+   
+          V.l_vk.pop_back();
+          V.n_vk.pop_back();
+          V.sum_y.pop_back();
+          V.sum_y2.pop_back();
+          V.customers_at_dish.pop_back();
+          V.K--;
+        }
+      }
     }
     
     int last = T - 1;
     if (t != last) {
       customers_at_table[t] = std::move(customers_at_table[last]);
       n_t[t] = n_t[last];
+      
       for (int v = 0; v < d; ++v) {
         dish_of[v][t] = dish_of[v][last];
       }
+      
       for (int j : customers_at_table[t]) {
         table_of[j] = t;
       }
@@ -304,6 +334,7 @@ void save_state() {
 
 double uniform01() { return R::runif(0.0, 1.0); }
 double rnorm_scalar(double mean, double sd) { return R::rnorm(mean, sd); }
+
 double compute_f_vk(int v, int k, int i) {
   const ViewState &V = views[v];
   

@@ -44,24 +44,10 @@ x <- data.frame(
 )
 
 
-x <- data.frame(
-  view1 = c(rnorm(100, mean = 3, sd = 1.3), 
-            rnorm(100, mean = -3, sd = 1.3)), 
-  view2 = c(rnorm(50, mean = 0, sd = 1.3), 
-            rnorm(100, mean = -5, sd = 1.3), 
-            rnorm(50, mean = 5, sd = 1.3)), 
-  view3 = c(rnorm(100, mean = 3, sd = 1.3), 
-            rnorm(100, mean = -3, sd = 1.3)),
-  view4 = c(rnorm(100, mean = 3, sd = 1.3), 
-            rnorm(100, mean = -3, sd = 1.3)),
-  view5 = c(rnorm(100, mean = -3, sd = 1.3), 
-            rnorm(100, mean = 3, sd = 1.3)),
-  tables = sample(c(1:19), size = 200, replace = TRUE)
-)
 
 
-true_labels_2_clusters <- c(rep(1, 100), rep(2, 100))
-true_labels_3_clusters <- c(rep(1, 50), rep(2, 100), rep(3, 50))
+true_labels_2_clusters <- c(rep(0, 100), rep(1, 100))
+true_labels_3_clusters <- c(rep(0, 50), rep(1, 100), rep(2, 50))
 
 print(paste("Total rows:", nrow(x)))
 print(head(x))

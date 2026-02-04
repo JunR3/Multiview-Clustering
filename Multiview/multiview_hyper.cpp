@@ -107,7 +107,8 @@ double log_posterior_global_sigma(double sigma_candidate) {
 }
 
 double propose_alpha(double alpha_old) {
-  const double step = 0.1;
+  // Increased step size from 0.1 to 0.3 for faster exploration
+  const double step = 0.3;
 
   double log_alpha = std::log(std::max(alpha_old, kEps));
   log_alpha += rnorm_scalar(0.0, step);
@@ -131,7 +132,8 @@ double reflect_into_unit_interval(double value) {
 }
 
 double propose_sigma(double sigma_old) {
-  const double step = 0.05;
+  // Increased step size from 0.05 to 0.15 for faster exploration
+  const double step = 0.15;
   double proposal = sigma_old + rnorm_scalar(0.0, step);
   return reflect_into_unit_interval(proposal);
 }
@@ -243,6 +245,9 @@ void update_hyperparameters() {
 
   update_tau_v_MH();
 
+  // Dombowsky fix: Set γ=1 (concentration parameters fixed, not learned)
+  // Comment out alpha/sigma updates to keep them at initialization value
+  /*
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
 
@@ -294,6 +299,7 @@ void update_hyperparameters() {
                                   log_posterior_global_sigma(sg_old)) {
     sigma_global = sg_prop;
   }
+  */
 }
 
 double log_EPPF(int v, double alpha, double sigma) {
@@ -355,8 +361,9 @@ double log_prior_alpha(double alpha) {
   if (alpha <= 0.0)
     return -INFINITY;
 
-  const double shape = 4.0;
-  const double rate = 3.0;
+  // Round 2: Very strict Gamma(0.5, 10) to push alpha toward ~0.05
+  const double shape = 0.5;
+  const double rate = 10.0;
 
   return (shape - 1.0) * std::log(alpha) - rate * alpha;
 }
@@ -365,8 +372,9 @@ double log_prior_sigma(double sigma) {
   if (sigma <= 0.0 || sigma >= 1.0)
     return -INFINITY;
 
+  // Round 2: Beta(1, 20) to push sigma toward ~0.05 (near-DP)
   const double a = 1.0;
-  const double b = 5.0;
+  const double b = 20.0;
 
   return (a - 1.0) * std::log(sigma) + (b - 1.0) * std::log(1.0 - sigma);
 }

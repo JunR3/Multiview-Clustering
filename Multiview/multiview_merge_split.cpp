@@ -263,8 +263,8 @@ bool propose_split() {
 } // anonymous namespace
 
 void merge_split_step() {
-
-  for (int attempt = 0; attempt < 3; ++attempt) {
+  // Increased from 3 to 10 attempts per iteration for faster convergence
+  for (int attempt = 0; attempt < 10; ++attempt) {
     if (R::runif(0.0, 1.0) < 0.5) {
       propose_merge();
     } else {

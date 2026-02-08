@@ -17,3 +17,11 @@
 
 # Unit test binary
 unit_tests
+Multiview/cluster_scatter_panels.png
+Multiview/patient_clustering_results.txt
+Multiview/patient_data_overview.png
+Multiview/patient_view_densities.png
+Multiview/patient_hyperparameter_traces.png
+Multiview/Rplots.pdf
+Multiview/separation_ari_by_view.png
+Multiview/separation_ari_curve.png

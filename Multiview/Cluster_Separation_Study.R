@@ -8,7 +8,7 @@ library(mcclust.ext)
 library(gridExtra)
 library(tidyr)
 
-Rcpp::sourceCpp("multiview_gibbs.cpp")
+Rcpp::sourceCpp("lib/multiview_gibbs.cpp")
 
 set.seed(2024)
 

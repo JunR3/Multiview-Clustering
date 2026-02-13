@@ -9,11 +9,11 @@ library(gridExtra)
 library(clue)
 library(tidyr)
 
-Rcpp::sourceCpp("multiview_gibbs.cpp")
+Rcpp::sourceCpp("MultiView/lib/multiview_gibbs.cpp")
 
 set.seed(2024)
 
-df_raw <- read.csv("../dataset/CPP_dataset.csv", check.names = FALSE)
+df_raw <- read.csv("dataset/CPP_dataset.csv", check.names = FALSE)
 
 if (colnames(df_raw)[1] == "") {
     colnames(df_raw)[1] <- "Index"

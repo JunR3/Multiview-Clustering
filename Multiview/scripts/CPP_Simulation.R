@@ -9,7 +9,7 @@ library(gridExtra)
 library(clue)
 library(tidyr)
 
-Rcpp::sourceCpp("multiview_gibbs.cpp")
+Rcpp::sourceCpp("src/multiview_gibbs.cpp")
 
 set.seed(2024)
 

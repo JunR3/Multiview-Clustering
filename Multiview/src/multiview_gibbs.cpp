@@ -10,10 +10,12 @@
 
 using namespace Rcpp;
 
-static void initialize_state_from_data() {
-
-  int K_init_tables = 4;
-  int K_init_dishes = 2;
+static void
+initialize_state_from_data(int K_init_tables, int K_init_dishes,
+                           double alpha_global_init, double sigma_global_init,
+                           Rcpp::Nullable<Rcpp::NumericVector> alpha_v_init,
+                           Rcpp::Nullable<Rcpp::NumericVector> sigma_v_init,
+                           Rcpp::Nullable<Rcpp::NumericVector> tau_v_init) {
 
   T = K_init_tables;
   table_of.assign(n, 0);
@@ -76,8 +78,19 @@ static void initialize_state_from_data() {
       V.customers_at_dish[k].push_back(i);
     }
 
-    V.alpha_v = 1.0;
-    V.sigma_v = 0.5;
+    if (alpha_v_init.isNotNull()) {
+      NumericVector alpha_v_vec(alpha_v_init);
+      V.alpha_v = (alpha_v_vec.size() > v) ? alpha_v_vec[v] : alpha_v_vec[0];
+    } else {
+      V.alpha_v = 1.0;
+    }
+
+    if (sigma_v_init.isNotNull()) {
+      NumericVector sigma_v_vec(sigma_v_init);
+      V.sigma_v = (sigma_v_vec.size() > v) ? sigma_v_vec[v] : sigma_v_vec[0];
+    } else {
+      V.sigma_v = 0.5;
+    }
 
     double s1 = 0.0;
     for (int i = 0; i < n; ++i) {
@@ -96,20 +109,52 @@ static void initialize_state_from_data() {
     }
     if (var <= 0.0)
       var = 1.0;
-    V.tau_v = var * 0.25 * 0.01;
+    if (tau_v_init.isNotNull()) {
+      NumericVector tau_v_vec(tau_v_init);
+      V.tau_v = (tau_v_vec.size() > v) ? tau_v_vec[v] : tau_v_vec[0];
+    } else {
+      V.tau_v = var * 0.25 * 0.01;
+    }
   }
 
-  alpha_global = 1;
-  sigma_global = 0.6;
+  alpha_global = alpha_global_init;
+  sigma_global = sigma_global_init;
 
   saved_table_of.clear();
   saved_dish_of.clear();
   saved_loglik.clear();
 }
 
+//' Run Multiview Gibbs Sampler
+//'
+//' @param data_views List of numeric vectors, each containing one view of the
+// data. ' @param M Number of MCMC iterations. ' @param burn_in Number of
+// burn-in iterations. ' @param thin Thinning interval. ' @param
+// alpha_global_init Initial value for the global concentration parameter.
+// Defaults to 1.0. '
+//@param sigma_global_init Initial value for the global discount parameter.
+// Defaults to 0.6. ' @param alpha_v_init Optional numeric vector of initial
+// values for view-specific concentration parameters. If length 1, it's applied
+// to all views. ' @param sigma_v_init Optional numeric vector of initial values
+// for view-specific discount parameters. If length 1, it's applied to all
+// views. ' @param tau_v_init Optional numeric vector of initial values for
+// view-specific precision parameters. Defaults to an empirically driven
+// estimate. ' @param a_tau_prior Shape parameter for the Inverse-Gamma prior on
+// tau. Defaults to 2.0. ' @param b_tau_prior Scale parameter for the
+// Inverse-Gamma prior on tau. Defaults to 1.0. ' @param K_init_tables Initial
+// number of tables. Defaults to 4. ' @param K_init_dishes Initial number of
+// dishes per view. Defaults to 2. ' @return A list containing posterior samples
+// of table assignments, dish assignments, global/view parameters, and
+// log-likelihoods. ' @export
 // [[Rcpp::export]]
-Rcpp::List run_gibbs_cpp(const Rcpp::List &data_views, int M, int burn_in,
-                         int thin) {
+Rcpp::List
+run_gibbs_cpp(const Rcpp::List &data_views, int M, int burn_in, int thin,
+              double alpha_global_init = 1.0, double sigma_global_init = 0.6,
+              Rcpp::Nullable<Rcpp::NumericVector> alpha_v_init = R_NilValue,
+              Rcpp::Nullable<Rcpp::NumericVector> sigma_v_init = R_NilValue,
+              Rcpp::Nullable<Rcpp::NumericVector> tau_v_init = R_NilValue,
+              double a_tau_prior = 2.0, double b_tau_prior = 1.0,
+              int K_init_tables = 4, int K_init_dishes = 2) {
 
   d = data_views.size();
   n = Rcpp::as<Rcpp::NumericVector>(data_views[0]).size();
@@ -119,7 +164,12 @@ Rcpp::List run_gibbs_cpp(const Rcpp::List &data_views, int M, int burn_in,
   for (int v = 0; v < d; ++v)
     y[v] = Rcpp::as<std::vector<double>>(data_views[v]);
 
-  initialize_state_from_data();
+  a_tau = a_tau_prior;
+  b_tau = b_tau_prior;
+
+  initialize_state_from_data(K_init_tables, K_init_dishes, alpha_global_init,
+                             sigma_global_init, alpha_v_init, sigma_v_init,
+                             tau_v_init);
 
   gibbs_sampler(M, burn_in, thin);
 

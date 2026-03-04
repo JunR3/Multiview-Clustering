@@ -140,8 +140,8 @@ double propose_sigma(double sigma_old) {
 
 } // end namespace
 
-static const double a_tau = 2.0;
-static const double b_tau = 1.0;
+double a_tau = 2.0;
+double b_tau = 1.0;
 
 void initialize_hyperparameters() {
 
@@ -246,8 +246,7 @@ void update_hyperparameters() {
   update_tau_v_MH();
 
   // Dombowsky fix: Set γ=1 (concentration parameters fixed, not learned)
-  // Comment out alpha/sigma updates to keep them at initialization value
-  /*
+  // Re-enabled alpha/sigma updates
   for (int v = 0; v < d; ++v) {
     ViewState &V = views[v];
 
@@ -299,7 +298,6 @@ void update_hyperparameters() {
                                   log_posterior_global_sigma(sg_old)) {
     sigma_global = sg_prop;
   }
-  */
 }
 
 double log_EPPF(int v, double alpha, double sigma) {

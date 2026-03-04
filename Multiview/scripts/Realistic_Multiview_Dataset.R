@@ -20,7 +20,7 @@ library(gridExtra)
 library(tidyr)
 library(MASS)
 
-Rcpp::sourceCpp("multiview_gibbs.cpp")
+Rcpp::sourceCpp("../src/multiview_gibbs.cpp")
 
 set.seed(42)
 

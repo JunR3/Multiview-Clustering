@@ -2,12 +2,14 @@
 #ifndef MULTIVIEW_HYPER_H
 #define MULTIVIEW_HYPER_H
 
-#include <vector>
-#include <cmath>
 #include "multiview_state.h"
+#include <cmath>
+#include <vector>
 
 extern double alpha_global;
 extern double sigma_global;
+extern double a_tau;
+extern double b_tau;
 
 void initialize_hyperparameters();
 
